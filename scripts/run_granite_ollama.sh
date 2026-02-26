@@ -121,8 +121,8 @@ if ! "${OLLAMA_BIN}" list &>/dev/null; then
     exit 1
 fi
 echo "OLLAMA server ready at ${OLLAMA_BASE_URL}"
-echo "SSH tunnel command:"
-echo "  ssh -L ${OLPORT}:127.0.0.1:${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu"
+echo "SSH tunnel command (from your Mac; Ollama runs on compute node $(hostname)):"
+echo "  ssh -L ${OLPORT}:$(hostname):${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu -N"
 echo "============================================================"
 
 # ---------------------------------------------------------------------------
@@ -149,7 +149,7 @@ fi
 # ---------------------------------------------------------------------------
 echo "Serving ${FULL_MODEL} — job will run until walltime (${HPCC_TIME})"
 echo "To connect from your Mac:"
-echo "  ssh -L ${OLPORT}:127.0.0.1:${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu"
+echo "  ssh -L ${OLPORT}:$(hostname):${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu -N"
 ~/ollama-latest/bin/ollama run ${FULL_MODEL} --verbose >~/ollama-hpcc/running_${MODEL}_${OLPORT}.log 2>~/ollama-hpcc/running_${MODEL}_${OLPORT}.err &
 sleep 2h30m
 wait ${OLLAMA_PID}

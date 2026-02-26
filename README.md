@@ -97,6 +97,28 @@ OLLAMA_HOST=127.0.0.1:<PORT> ollama list
 OLLAMA_HOST=127.0.0.1:<PORT> ollama run granite4:3b --verbose
 ```
 
+### Tunnel debugging
+
+If the tunnel connects but you get **connection reset by peer** or **connection refused**:
+
+1. **Check the tunnel locally** (on your Mac):
+   ```bash
+   lsof -i :<PORT>   # should show ssh listening
+   curl -v http://127.0.0.1:<PORT>/api/tags   # verbose test
+   ```
+
+2. **SSH channel error**  
+   If the SSH session shows `channel 2: open failed: connect failed: Connection refused`, the remote side of the forward has nothing listening. That usually means:
+   - **Batch jobs**: Ollama runs on a **compute node**, not the login node. The tunnel must forward to the compute node by hostname, not to `127.0.0.1` on the login node.
+   - Use the tunnel command printed in the **job output** (it includes the node name), e.g.:
+     ```bash
+     ssh -L <PORT>:<COMPUTE_NODE>:<PORT> -i ~/.ssh/id_rsa sweeden@login.hpcc.ttu.edu -N
+     ```
+   - Replace `<COMPUTE_NODE>` with the node name from the job (e.g. the hostname shown in the job log).
+
+3. **Interactive sessions**  
+   If you started Ollama in an interactive session on the **login node**, then `-L <PORT>:127.0.0.1:<PORT>` is correct. If the session runs on a compute node, use that node's hostname in the tunnel.
+
 ## License
 
 MIT
