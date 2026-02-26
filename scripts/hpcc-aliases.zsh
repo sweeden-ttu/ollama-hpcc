@@ -31,6 +31,10 @@ qwen() {
 }
 
 # Git aliases for HPCC
+hpcc-jobs() {
+    ssh -q sweeden@login.hpcc.ttu.edu "squeue -u sweeden"
+}
+
 hpcc-git-pull() {
     ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && git pull"
 }
