@@ -13,21 +13,32 @@ hpcc-login() {
     ssh -q sweeden@login.hpcc.ttu.edu
 }
 
-# Submit batch jobs - uses dynamic ports
+# Submit batch jobs - uses dynamic ports (sbatch on HPCC)
 granite() {
-    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_granite_ollama.sh"
+    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && sbatch scripts/run_granite_ollama.sh"
 }
 
 codellama() {
-    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_codellama_ollama.sh"
+    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && sbatch scripts/run_codellama_ollama.sh"
 }
 
 deepseek() {
-    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_deepseek_ollama.sh"
+    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && sbatch scripts/run_deepseek_ollama.sh"
 }
 
 qwen() {
-    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_qwen_ollama.sh"
+    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && sbatch scripts/run_qwen-coder_ollama.sh"
+}
+
+# SSH tunnel to Ollama on HPCC
+# Usage: hpcc-tunnel PORT [NODE]
+#   PORT - remote (and local) port, e.g. from job output
+#   NODE - compute node hostname (omit for interactive on login node, use 127.0.0.1)
+# Example: hpcc-tunnel 56905 matador07
+hpcc-tunnel() {
+    local port="${1:?Usage: hpcc-tunnel PORT [NODE]}"
+    local node="${2:-127.0.0.1}"
+    ssh -L "${port}:${node}:${port}" -i ~/.ssh/id_rsa -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N sweeden@login.hpcc.ttu.edu
 }
 
 # Interactive model sessions - use salloc + srun to allocate GPU node and run ollama
