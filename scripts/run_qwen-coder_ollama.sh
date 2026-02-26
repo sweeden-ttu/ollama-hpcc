@@ -70,16 +70,10 @@ EOF
 # ---------------------------------------------------------------------------
 # Load modules
 # ---------------------------------------------------------------------------
-# Initialise Lmod (required -- SLURM jobs do not source /etc/profile.d)
-if [[ -z "${MODULESHOME:-}" ]]; then
-    source /usr/share/lmod/lmod/init/bash 2>/dev/null \
-        || source /etc/profile.d/modules.sh 2>/dev/null \
-        || { echo "ERROR: cannot initialise module system"; exit 1; }
-fi
-
+source /etc/profile.d/modules.sh
 module purge
-module load gcc
-module load cuda/12.9.0
+module load gcc/9.3.0
+module load openmpi/3.1.6-cuda
 
 # ---------------------------------------------------------------------------
 # Start OLLAMA server
