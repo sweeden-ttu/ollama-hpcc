@@ -46,8 +46,7 @@ FULL_MODEL="${MODEL}:${MODEL_VERSION}"
 mkdir -p "${OLLAMA_LOG_DIR}"
 
 # ---------------------------------------------------------------------------
-# Pick a free ephemeral port (dynamic) — mapped to static port 55077 via
-# SSH tunnel for the Debug/VPN environment
+# Pick a free ephemeral port (dynamic) — use same port locally via SSH tunnel
 # ---------------------------------------------------------------------------
 OLPORT=$(python3 -c "
 import socket
@@ -68,9 +67,6 @@ echo "Port:       ${OLPORT}"
 echo "GPU(s):     ${CUDA_VISIBLE_DEVICES}"
 echo "Started:    $(date)"
 echo "============================================================"
-echo "SSH tunnel command (Debug/VPN port 55077):"
-echo "  ssh -L 55077:127.0.0.1:${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu"
-echo "============================================================"
 
 # Write connection info for ollama_port_map.sh and ollama_health_check.sh
 INFO_FILE="${OLLAMA_LOG_DIR}/${MODEL}_${SLURM_JOB_ID}.info"
@@ -85,12 +81,25 @@ EOF
 echo "Server info written to: ${INFO_FILE}"
 
 # ---------------------------------------------------------------------------
-# Load modules
+# Load modules (try common HPCC module init paths; SLURM batch has no profile)
 # ---------------------------------------------------------------------------
-source /etc/profile.d/modules.sh
-module purge
+
 module load gcc
 module load cuda/12.9.0
+module load python/3.12.5
+
+# ---------------------------------------------------------------------------
+# CUDA and GPU summary
+# ---------------------------------------------------------------------------
+echo "============================================================"
+echo "CUDA / GPU summary"
+echo "============================================================"
+if command -v nvidia-smi &>/dev/null; then
+  nvidia-smi --query-gpu=name,driver_version,memory.total,memory.free,utilization.gpu --format=csv,noheader 2>/dev/null || nvidia-smi
+else
+  echo "nvidia-smi not found; CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-not set}"
+fi
+echo "============================================================"
 
 # ---------------------------------------------------------------------------
 # Start OLLAMA server
@@ -112,6 +121,9 @@ if ! "${OLLAMA_BIN}" list &>/dev/null; then
     exit 1
 fi
 echo "OLLAMA server ready at ${OLLAMA_BASE_URL}"
+echo "SSH tunnel command:"
+echo "  ssh -L ${OLPORT}:127.0.0.1:${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu"
+echo "============================================================"
 
 # ---------------------------------------------------------------------------
 # Pull model if not already in Lustre cache
@@ -120,11 +132,24 @@ echo "Pulling model ${FULL_MODEL} (no-op if already cached)..."
 "${OLLAMA_BIN}" pull "${FULL_MODEL}"
 
 # ---------------------------------------------------------------------------
-# Keep the job alive — run ollama interactively in background
+# Run the model immediately (first inference to load and verify)
+# ---------------------------------------------------------------------------
+echo "Running model ${FULL_MODEL} (first inference)..."
+if curl -s -S --max-time 120 -X POST "http://127.0.0.1:${OLPORT}/api/generate" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"'"${FULL_MODEL}"'","prompt":"Say OK in one word.","stream":false}' \
+  -o /dev/null -w "HTTP %{http_code}\n"; then
+  echo "Model ${FULL_MODEL} loaded and ready."
+else
+  echo "WARNING: First inference failed or timed out; server may still be usable."
+fi
+
+# ---------------------------------------------------------------------------
+# Keep the job alive — run ollama in background until walltime
 # ---------------------------------------------------------------------------
 echo "Serving ${FULL_MODEL} — job will run until walltime (${HPCC_TIME})"
-echo "To connect from your Mac (VPN active):"
-echo "  ssh -L 55077:127.0.0.1:${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu"
+echo "To connect from your Mac:"
+echo "  ssh -L ${OLPORT}:127.0.0.1:${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu"
 ~/ollama-latest/bin/ollama run ${FULL_MODEL} --verbose >~/ollama-hpcc/running_${MODEL}_${OLPORT}.log 2>~/ollama-hpcc/running_${MODEL}_${OLPORT}.err &
 sleep 2h30m
 wait ${OLLAMA_PID}
