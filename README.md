@@ -40,6 +40,21 @@ See **docs/AGENTS.md** for details.
 pip install -e src/python/
 ```
 
+## Shell Aliases (macOS / zsh)
+
+Source the aliases script in your `~/.zshrc`:
+
+```bash
+source /Users/owner/projects/ollama-hpcc/scripts/hpcc-aliases.zsh
+```
+
+Usage:
+- `hpcc-login` - SSH into HPCC
+- `hpcc "ls -la"` - run any command remotely
+- `granite` - run granite script (DEBUG 55077)
+- `granite RELEASE 55177` - override mode and port
+- `codellama`, `deepseek`, `qwen` - same pattern
+
 ## License
 
 MIT

@@ -89,8 +89,8 @@ echo "Server info written to: ${INFO_FILE}"
 # ---------------------------------------------------------------------------
 source /etc/profile.d/modules.sh
 module purge
-module load gcc/13.2.0
-module load cuda/11.8.0
+module load gcc
+module load cuda/12.9.0
 
 # ---------------------------------------------------------------------------
 # Start OLLAMA server
