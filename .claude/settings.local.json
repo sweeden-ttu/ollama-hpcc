@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh:*)",
+      "WebFetch(domain:ollama.com)",
+      "Bash(scp:*)",
+      "Bash(git pull:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(python3:*)",
+      "Bash(git -C /Users/owner/projects/ollama-hpcc add:*)",
+      "Bash(git -C:*)",
+      "Bash(git -C /Users/owner/projects/ollama-hpcc push origin main)",
+      "WebFetch(domain:www.depts.ttu.edu)"
+    ]
+  }
+}
