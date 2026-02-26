@@ -88,10 +88,13 @@ granite
 
 # Start interactive session
 granite-interactive
-# The job output will show the SSH tunnel command with dynamic port
+# The job output will show the SSH tunnel command
+# Example tunnel command:
+ssh -L <PORT>:127.0.0.1:<PORT> -i ~/.ssh/id_rsa sweeden@login.hpcc.ttu.edu -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N
 
-# Run ollama locally (with tunnel active)
-ollama run granite4:3b --verbose
+# Use Ollama through the tunnel
+OLLAMA_HOST=127.0.0.1:<PORT> ollama list
+OLLAMA_HOST=127.0.0.1:<PORT> ollama run granite4:3b --verbose
 ```
 
 ## License
