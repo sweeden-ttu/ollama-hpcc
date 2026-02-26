@@ -1,0 +1,43 @@
+{
+  "skill_name": "granite-agent",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use the granite agent to ask: 'What is 17 * 23?' and return the answer.",
+      "expected_output": "The skill runs bootstrap.sh first, confirms port 55077 is reachable, then sends the arithmetic question to granite4:3b via the OLLAMA API and prints the model's response.",
+      "files": [],
+      "expectations": [
+        "bootstrap.sh is executed before any API call",
+        "The curl/API request targets localhost:55077",
+        "The model referenced in the request is granite4:3b",
+        "If the port is unreachable the agent exits with a non-zero code and explains the SSH tunnel fix"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The granite agent should fail with a clear error — do not start the SSH tunnel before running this test. Attempt to connect to granite on port 55077.",
+      "expected_output": "bootstrap.sh detects port 55077 is closed, prints a human-readable error explaining the SSH tunnel is not up, and exits non-zero without sending any prompt to the model.",
+      "files": [],
+      "expectations": [
+        "bootstrap.sh exits with code 1 (not 0)",
+        "stderr contains the word 'unreachable' or 'refused'",
+        "stderr contains instructions mentioning 'SSH tunnel' or 'ollama_port_map.sh'",
+        "No curl request to /api/generate or /api/chat is made after the failure",
+        "stdout is empty (no partial GRANITE_BASE_URL output)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Ask the granite agent: 'Summarise IBM Granite 4 in two sentences.' The SSH tunnel to port 55077 is already active.",
+      "expected_output": "bootstrap.sh succeeds (exit 0), then the agent sends the prompt to granite4:3b and returns a two-sentence summary. The response comes from localhost:55077 only.",
+      "files": [],
+      "expectations": [
+        "bootstrap.sh exits 0 and prints GRANITE_BASE_URL=http://localhost:55077",
+        "A POST request is made to http://localhost:55077/api/chat or /api/generate",
+        "The payload includes model granite4:3b",
+        "A non-empty text response is printed to the user",
+        "No fallback to any other model or port occurs"
+      ]
+    }
+  ]
+}
