@@ -3,9 +3,13 @@
 # ollama_connect.sh
 # Utility: SSH port-forward a running OLLAMA server to your local machine
 #
-# This script reads *.info files to find a running server and sets up
-# an SSH tunnel so you can access it from your laptop/workstation at
-# http://localhost:<LOCAL_PORT>
+# To create a tunnel use this format (see README):
+#   1. Login to interactive nocona: /etc/slurm/scripts/interactive -p nocona
+#   2. Note NODE and port from job/session
+#   3. From your Mac: ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp
+#
+# This script runs the tunnel: ssh -L LOCAL_PORT:NODE:PORT sweeden@login.hpcc.ttu.edu -N
+# =============================================================================
 #
 # Usage:
 #   bash ollama_connect.sh [model_name] [local_port]
@@ -27,6 +31,7 @@ FILTER="${1:-}"          # Optional model name filter
 LOCAL_PORT="${2:-11434}" # Default local port to bind
 
 HPCC_LOGIN="login.hpcc.ttu.edu"
+HPCC_USER="sweeden"
 
 # Find matching .info file
 MATCHED_INFO=""
@@ -66,7 +71,5 @@ echo "  curl http://localhost:${LOCAL_PORT}/api/tags"
 echo "  OLLAMA_HOST=http://localhost:${LOCAL_PORT} ollama run ${MODEL}"
 echo ""
 
-# Two-hop SSH tunnel: laptop -> login node -> compute node
-ssh -N -L "${LOCAL_PORT}:localhost:${PORT}" \
-    -J "${HPCC_LOGIN}" \
-    "${USER}@${NODE}"
+# Two-hop not required: tunnel format is ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp
+ssh -N -L "${LOCAL_PORT}:${NODE}:${PORT}" "${HPCC_USER}@${HPCC_LOGIN}"

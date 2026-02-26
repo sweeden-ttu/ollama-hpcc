@@ -121,8 +121,12 @@ if ! "${OLLAMA_BIN}" list &>/dev/null; then
     exit 1
 fi
 echo "OLLAMA server ready at ${OLLAMA_BASE_URL}"
-echo "SSH tunnel command (from your Mac; Ollama runs on compute node $(hostname)):"
-echo "  ssh -L ${OLPORT}:$(hostname):${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu -N"
+echo "To create a tunnel from your Mac use this format:"
+echo "  1. Login to interactive nocona on HPCC: /etc/slurm/scripts/interactive -p nocona"
+echo "  2. Note the node name and port from the job/session (node=$(hostname), port=${OLPORT})"
+echo "  3. From your Mac: ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp"
+echo "     Substitute NODE and pppp with the node name and port from step 2."
+echo "  Example for this job: ssh sweeden@login.hpcc.ttu.edu -L ${OLPORT}:$(hostname):${OLPORT}"
 echo "============================================================"
 
 # ---------------------------------------------------------------------------
@@ -148,8 +152,8 @@ fi
 # Keep the job alive — run ollama in background until walltime
 # ---------------------------------------------------------------------------
 echo "Serving ${FULL_MODEL} — job will run until walltime (${HPCC_TIME})"
-echo "To connect from your Mac:"
-echo "  ssh -L ${OLPORT}:$(hostname):${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu -N"
+echo "To connect from your Mac, create a tunnel (see README):"
+echo "  ssh sweeden@login.hpcc.ttu.edu -L ${OLPORT}:$(hostname):${OLPORT}"
 ~/ollama-latest/bin/ollama run ${FULL_MODEL} --verbose >~/ollama-hpcc/running_${MODEL}_${OLPORT}.log 2>~/ollama-hpcc/running_${MODEL}_${OLPORT}.err &
 sleep 2h30m
 wait ${OLLAMA_PID}

@@ -37,7 +37,7 @@ def forward(src, dst):
 def main():
     print(f"Starting Ollama proxy: {LOCAL_PORT} -> {TUNNEL_PORT}")
     print(f"SSH tunnel should forward: localhost:{TUNNEL_PORT} -> GPU node Ollama")
-    print("Run: ssh -L 55078:127.0.0.1:DYNAMIC_PORT -N -f sweeden@login.hpcc.ttu.edu")
+    print("To create tunnel: (1) /etc/slurm/scripts/interactive -p nocona, (2) note NODE and port, (3) ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp")
     print("Press Ctrl+C to stop\n")
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

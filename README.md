@@ -61,7 +61,7 @@ source /Users/owner/projects/ollama-hpcc/scripts/hpcc-aliases.zsh
 Interactive sessions:
 - Request a GPU node via SLURM
 - Start Ollama server on a dynamic port
-- Display SSH tunnel command for local connection
+- Create a tunnel using: (1) Login to interactive nocona via `/etc/slurm/scripts/interactive -p nocona`, (2) note node and port, (3) from Mac: `ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp`
 
 ### Job Management
 | Alias | Description |
@@ -77,6 +77,37 @@ Interactive sessions:
 | `hpcc-git-commit "msg"` | Commit changes |
 | `hpcc-git-push` | Push to remote |
 
+### Creating a tunnel to Ollama on HPCC
+
+Use this procedure to create an SSH tunnel from your Mac to the Ollama server.
+
+**Step 1 — Login to interactive nocona (on HPCC):**
+
+```bash
+/etc/slurm/scripts/interactive -p nocona
+```
+
+**Step 2 — From that session:** Note the **hostname** (e.g. `cpu-NN-nn`) and the **Ollama dynamic port** (pppp) from the job or script output.
+
+**Step 3 — From your Mac**, run (substitute the node name and port from the previous step for `cpu-NN-nn` and `pppp` respectively):
+
+```bash
+ssh sweeden@login.hpcc.ttu.edu -L pppp:cpu-NN-nn:pppp
+```
+
+Example: if the node is `cpu-01-42` and the port is `37659`:
+
+```bash
+ssh sweeden@login.hpcc.ttu.edu -L 37659:cpu-01-42:37659
+```
+
+Then use Ollama locally:
+
+```bash
+OLLAMA_HOST=127.0.0.1:<pppp> ollama list
+OLLAMA_HOST=127.0.0.1:<pppp> ollama run granite4:3b --verbose
+```
+
 ### Examples
 
 ```bash
@@ -88,13 +119,7 @@ granite
 
 # Start interactive session
 granite-interactive
-# The job output will show the SSH tunnel command
-# Example tunnel command:
-ssh -L <PORT>:127.0.0.1:<PORT> -i ~/.ssh/id_rsa sweeden@login.hpcc.ttu.edu -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N
-
-# Use Ollama through the tunnel
-OLLAMA_HOST=127.0.0.1:<PORT> ollama list
-OLLAMA_HOST=127.0.0.1:<PORT> ollama run granite4:3b --verbose
+# Follow the 3-step tunnel procedure above using the port and node from the output
 ```
 
 ### Tunnel debugging
@@ -103,21 +128,11 @@ If the tunnel connects but you get **connection reset by peer** or **connection 
 
 1. **Check the tunnel locally** (on your Mac):
    ```bash
-   lsof -i :<PORT>   # should show ssh listening
-   curl -v http://127.0.0.1:<PORT>/api/tags   # verbose test
+   lsof -i :<pppp>   # should show ssh listening
+   curl -v http://127.0.0.1:<pppp>/api/tags   # verbose test
    ```
 
-2. **SSH channel error**  
-   If the SSH session shows `channel 2: open failed: connect failed: Connection refused`, the remote side of the forward has nothing listening. That usually means:
-   - **Batch jobs**: Ollama runs on a **compute node**, not the login node. The tunnel must forward to the compute node by hostname, not to `127.0.0.1` on the login node.
-   - Use the tunnel command printed in the **job output** (it includes the node name), e.g.:
-     ```bash
-     ssh -L <PORT>:<COMPUTE_NODE>:<PORT> -i ~/.ssh/id_rsa sweeden@login.hpcc.ttu.edu -N
-     ```
-   - Replace `<COMPUTE_NODE>` with the node name from the job (e.g. the hostname shown in the job log).
-
-3. **Interactive sessions**  
-   If you started Ollama in an interactive session on the **login node**, then `-L <PORT>:127.0.0.1:<PORT>` is correct. If the session runs on a compute node, use that node's hostname in the tunnel.
+2. Ensure you used the correct format: `ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp` where **NODE** is the hostname from `/etc/slurm/scripts/interactive -p nocona` (e.g. `cpu-NN-nn`) and **pppp** is the Ollama dynamic port.
 
 ## License
 

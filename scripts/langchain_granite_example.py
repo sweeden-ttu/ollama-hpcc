@@ -19,20 +19,16 @@ Step 1 — Tell the agent to start Granite on HPCC (run in Cowork / terminal):
   Claude will:
     a) ssh sweeden@login.hpcc.ttu.edu
     b) cd ~/ollama-hpcc && sbatch scripts/run_granite_ollama.sh
-    c) Wait for the job to start, get the dynamic port from the output
-    d) Print the SSH tunnel command, e.g.:
-         ssh -L <PORT>:127.0.0.1:<PORT> -i ~/.ssh/id_rsa \\
-             sweeden@login.hpcc.ttu.edu
+    c) Wait for the job to start, get the node name and dynamic port from the output
+    d) Print the tunnel procedure (see Step 2).
 
-Step 2 — Open the SSH tunnel (copy-paste from Claude's output):
+Step 2 — Create the SSH tunnel (use this format):
 ────────────────────────────────────────────────────────────────
-  ssh -L <PORT>:127.0.0.1:<PORT> -i ~/.ssh/id_rsa \\
-      sweeden@login.hpcc.ttu.edu
-
-Step 2 — Open the SSH tunnel (copy-paste from Claude's output):
-────────────────────────────────────────────────────────────────
-  ssh -L <PORT>:127.0.0.1:<PORT> -i ~/.ssh/id_rsa \
-      sweeden@login.hpcc.ttu.edu
+  1. Login to interactive nocona on HPCC: /etc/slurm/scripts/interactive -p nocona
+  2. Note the node name (e.g. cpu-NN-nn) and port from the job/session.
+  3. From your Mac: ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp
+     (substitute pppp and NODE from step 2). Example:
+     ssh sweeden@login.hpcc.ttu.edu -L 37659:cpu-01-42:37659
   (leave this terminal open)
 
 Step 3 — Install dependencies locally (once):
@@ -126,7 +122,7 @@ def bootstrap_check() -> dict:
             print("To start it:")
             print("  1. Run 'granite' or 'granite-interactive'")
             print("  2. Note the dynamic port from the job output")
-            print("  3. Create SSH tunnel: ssh -L <PORT>:127.0.0.1:<PORT> ...")
+            print("  3. Create SSH tunnel: ssh sweeden@login.hpcc.ttu.edu -L <PORT>:<NODE>:<PORT> (see README)")
             sys.exit(result.returncode)
 
         # Parse eval-able key=value output

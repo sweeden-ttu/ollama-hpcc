@@ -20,9 +20,8 @@
 #   bash ollama_port_map.sh --env testing2
 #   bash ollama_port_map.sh --env release
 #
-# The generated SSH commands use:
-#   ssh -L <STATIC_PORT>:127.0.0.1:<DYNAMIC_PORT> -i ~/.ssh/id_rsa \
-#       sweeden@login.hpcc.ttu.edu
+# The generated SSH commands use (see README: interactive nocona, then):
+#   ssh sweeden@login.hpcc.ttu.edu -L <LOCAL_PORT>:<NODE>:<REMOTE_PORT>
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -154,8 +153,8 @@ if [[ ${JSON_MODE} -eq 1 ]]; then
                 job_id="${DYNAMIC_JOBS[$model]}"
 
                 # Build SSH command only if dynamic port is known
-                if [[ "${dynamic_port}" != "N/A" ]]; then
-                    ssh_cmd="ssh -L ${static_port}:127.0.0.1:${dynamic_port} -i ${SSH_KEY} ${HPCC_USER}@${HPCC_LOGIN}"
+                if [[ "${dynamic_port}" != "N/A" ]] && [[ "${node}" != "N/A" ]]; then
+                    ssh_cmd="ssh -L ${static_port}:${node}:${dynamic_port} -i ${SSH_KEY} ${HPCC_USER}@${HPCC_LOGIN}"
                     tunnel_active="false"
                     # Check if a tunnel on this static port already exists
                     if ss -tlnp 2>/dev/null | grep -q ":${static_port} " || \
@@ -232,10 +231,10 @@ for env in "${ENVS[@]}"; do
         dynamic_port="${DYNAMIC_PORTS[$model]}"
         node="${DYNAMIC_NODES[$model]}"
 
-        if [[ "${dynamic_port}" != "N/A" ]]; then
-            ssh_cmd="ssh -L ${static_port}:127.0.0.1:${dynamic_port} -i ${SSH_KEY} ${HPCC_USER}@${HPCC_LOGIN}"
+        if [[ "${dynamic_port}" != "N/A" ]] && [[ "${node}" != "N/A" ]]; then
+            ssh_cmd="ssh -L ${static_port}:${node}:${dynamic_port} -i ${SSH_KEY} ${HPCC_USER}@${HPCC_LOGIN}"
         else
-            ssh_cmd="(server not running)"
+            ssh_cmd="(server not running or node unknown)"
         fi
 
         printf "  %-14s %10s %10s   %s\n" \

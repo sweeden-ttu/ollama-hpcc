@@ -64,20 +64,19 @@ bash scripts/ollama_health_check.sh --json
 
 ## Connecting from Your Laptop
 
-Each job writes a `~/ollama-logs/<model>_<jobid>.info` file containing the
-compute node hostname and dynamic port. Use `ollama_connect.sh` to set up
-a two-hop SSH tunnel:
+To create a tunnel to Ollama on HPCC, use this format:
+
+1. **Login to interactive nocona** (on HPCC): `/etc/slurm/scripts/interactive -p nocona`
+2. Note the **node name** (e.g. `cpu-NN-nn`) and **Ollama dynamic port** (pppp) from the job or session output.
+3. **From your Mac:** `ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp` (substitute NODE and pppp from step 2).
+
+Each job also writes a `~/ollama-logs/<model>_<jobid>.info` file containing the
+compute node hostname and dynamic port. Then from your laptop:
 
 ```bash
-# Connect to the first granite server, expose locally on port 11434
-bash scripts/ollama_connect.sh granite
-
-# Connect to deepseek-r1 on local port 11435
-bash scripts/ollama_connect.sh deepseek-r1 11435
-
-# Then from your laptop:
-curl http://localhost:11434/api/tags
-OLLAMA_HOST=http://localhost:11434 ollama run granite3.3:8b
+# After tunnel is up (see above)
+curl http://localhost:<pppp>/api/tags
+OLLAMA_HOST=http://localhost:<pppp> ollama run granite3.3:8b
 ```
 
 ---
@@ -116,15 +115,23 @@ bash scripts/ollama_port_map.sh --env release
 bash scripts/ollama_port_map.sh --json --env debug
 ```
 
-### Example SSH tunnel (granite, Debug/VPN)
+### Example SSH tunnel (granite, after job reports node and port)
+
+To create a tunnel, use this format:
+
+1. Login to interactive nocona on HPCC: `/etc/slurm/scripts/interactive -p nocona`
+2. Note the node name (e.g. `cpu-NN-nn`) and port from the job/session.
+3. From your Mac: `ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp`
+
+Example (substitute actual node and port):
 
 ```bash
-ssh -L 55077:127.0.0.1:{$GRANITE_DYNAMIC_PORT} -i ~/.ssh/id_rsa sweeden@login.hpcc.ttu.edu
+ssh sweeden@login.hpcc.ttu.edu -L 55077:cpu-01-42:55077
 ```
 
-The script generates this command automatically for every model/environment
+The script generates ready-to-paste SSH commands for every model/environment
 combination based on the currently running `.info` files. Once the tunnel is
-up, reach the model at `http://localhost:55077` from your local machine.
+up, reach the model at `http://localhost:<local_port>` from your local machine.
 
 ---
 

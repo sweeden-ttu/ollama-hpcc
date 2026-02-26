@@ -99,6 +99,6 @@ print(response["message"]["content"])
 ## Usage
 
 1. Start job: `granite` or `granite-interactive`
-2. Note the dynamic port from job output
-3. Create SSH tunnel: `ssh -L <PORT>:127.0.0.1:<PORT> -i ~/.ssh/id_rsa sweeden@login.hpcc.ttu.edu`
+2. Note the dynamic port and node from job output (or from interactive nocona: `/etc/slurm/scripts/interactive -p nocona`)
+3. Create SSH tunnel using this format: `ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp` (substitute port and node, e.g. `cpu-NN-nn`)
 4. Run bootstrap: `bash scripts/granite-agent/scripts/bootstrap.sh`
