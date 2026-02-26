@@ -24,6 +24,10 @@
 # ---------------------------------------------------------------------------
 # Environment
 # ---------------------------------------------------------------------------
+# Clean up previous output/error files for this job name
+find ~/ollama-hpcc -maxdepth 1 -name "${SLURM_JOB_NAME}-*.out" ! -name "${SLURM_JOB_NAME}-${SLURM_JOB_ID}.out" -delete 2>/dev/null || true
+find ~/ollama-hpcc -maxdepth 1 -name "${SLURM_JOB_NAME}-*.err" ! -name "${SLURM_JOB_NAME}-${SLURM_JOB_ID}.err" -delete 2>/dev/null || true
+
 SCRIPT_DIR="/home/sweeden/ollama-hpcc/scripts"
 source "${SCRIPT_DIR}/model_versions.env"
 
