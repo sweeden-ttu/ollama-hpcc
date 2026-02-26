@@ -25,19 +25,19 @@
 #SBATCH --partition=matador
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=4096MB
 #SBATCH --gpus-per-node=1
-#SBATCH --time=08:00:00
+#SBATCH --time=02:30:00
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=${USER}@ttu.edu
+#SBATCH --mail-user=sweeden@ttu.edu
 
 # ---------------------------------------------------------------------------
 # Environment
 # ---------------------------------------------------------------------------
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="/home/sweeden/ollama-hpcc/scripts"
 source "${SCRIPT_DIR}/model_versions.env"
 
 MODEL="${GRANITE_MODEL}"
@@ -88,6 +88,13 @@ echo "Server info written to: ${INFO_FILE}"
 # ---------------------------------------------------------------------------
 # Load modules (per TTU Job Submission Guide — load before mpirun)
 # ---------------------------------------------------------------------------
+# Initialise Lmod (required — SLURM jobs do not source /etc/profile.d)
+if [[ -z "${MODULESHOME:-}" ]]; then
+    source /usr/share/lmod/lmod/init/bash 2>/dev/null \
+        || source /etc/profile.d/modules.sh 2>/dev/null \
+        || { echo "ERROR: cannot initialise module system"; exit 1; }
+fi
+
 module purge
 module load gcc
 module load cuda/12.9.0

@@ -21,6 +21,8 @@
 #SBATCH --mem-per-cpu=4096MB
 #SBATCH --gpus-per-node=1
 #SBATCH --time=02:00:00
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=sweeden@ttu.edu
 #SBATCH --output=ollama-pull-%j.out
 #SBATCH --error=ollama-pull-%j.err
 
