@@ -102,9 +102,9 @@ echo "Pulling model ${FULL_MODEL} (skipped if already cached)..."
 "${OLLAMA_BIN}" pull "${FULL_MODEL}"
 
 # ---------------------------------------------------------------------------
-# Run the model
+# Run the model in background
 # ---------------------------------------------------------------------------
 echo "Launching ${FULL_MODEL} in serve mode. Connect at ${OLLAMA_BASE_URL}"
-"${OLLAMA_BIN}" run "${FULL_MODEL}" --verbose
-
-echo "Job finished: $(date)"
+~/ollama-latest/bin/ollama run ${FULL_MODEL} --verbose >~/ollama-hpcc/running_${MODEL}_${OLPORT}.log 2>~/ollama-hpcc/running_${MODEL}_${OLPORT}.err &
+sleep 2h30m
+wait ${OLLAMA_PID}

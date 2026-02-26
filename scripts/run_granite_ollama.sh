@@ -120,12 +120,11 @@ echo "Pulling model ${FULL_MODEL} (no-op if already cached)..."
 "${OLLAMA_BIN}" pull "${FULL_MODEL}"
 
 # ---------------------------------------------------------------------------
-# Keep the job alive — OLLAMA serve runs until walltime or scancel
-# The job output file (%x-%j.out) shows the dynamic port for tunnelling
+# Keep the job alive — run ollama interactively in background
 # ---------------------------------------------------------------------------
 echo "Serving ${FULL_MODEL} — job will run until walltime (${HPCC_TIME})"
 echo "To connect from your Mac (VPN active):"
 echo "  ssh -L 55077:127.0.0.1:${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu"
+~/ollama-latest/bin/ollama run ${FULL_MODEL} --verbose >~/ollama-hpcc/running_${MODEL}_${OLPORT}.log 2>~/ollama-hpcc/running_${MODEL}_${OLPORT}.err &
+sleep 2h30m
 wait ${OLLAMA_PID}
-
-echo "Job finished: $(date)"
