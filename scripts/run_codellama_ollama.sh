@@ -78,7 +78,7 @@ module load cuda/12.9.0
 # Start OLLAMA server
 # ---------------------------------------------------------------------------
 LOG_BASE="${OLLAMA_LOG_DIR}/${MODEL}_${OLPORT}"
-"${OLLAMA_BIN}" serve > "${LOG_BASE}.log" 2> "${LOG_BASE}.err" &
+mpirun -np 1 "${OLLAMA_BIN}" serve > "${LOG_BASE}.log" 2> "${LOG_BASE}.err" &
 OLLAMA_PID=$!
 echo "OLLAMA server PID: ${OLLAMA_PID}"
 

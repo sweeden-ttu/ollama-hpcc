@@ -1,11 +1,24 @@
 #!/bin/bash
 # =============================================================================
 # run_granite_ollama.sh
-# SLURM batch script: launch an OLLAMA server running IBM Granite 4 on RedRaider
-# Partition: matador (GPU)
+# SLURM batch script — IBM Granite 4 on RedRaider HPCC (matador GPU partition)
 #
-# Submit with:  sbatch run_granite_ollama.sh
-# Or via MPI:   bash mpi_run.sh run_granite_ollama.sh
+# Submission (from login node):
+#   cd ~/ollama-hpcc
+#   sbatch scripts/run_granite_ollama.sh
+#
+# Or use the mpi_run launcher to submit N parallel instances:
+#   bash scripts/mpi_run.sh run_granite_ollama.sh        # 1 node
+#   bash scripts/mpi_run.sh run_granite_ollama.sh 4      # 4 nodes
+#
+# Following the TTU HPCC Job Submission Guide:
+#   - sbatch submits this script to the SLURM scheduler
+#   - modules are loaded (gcc + cuda) before execution, matching the guide
+#   - mpirun launches the OLLAMA serve process so SLURM properly tracks
+#     and manages it across allocated tasks/cores on the compute node
+#   - A single-task MPI job (--ntasks=1) is correct here because OLLAMA
+#     is a single multi-threaded server, not a distributed MPI program;
+#     mpirun is used to satisfy SLURM's process management expectations
 # =============================================================================
 
 #SBATCH --job-name=ollama-granite
@@ -34,7 +47,8 @@ FULL_MODEL="${MODEL}:${MODEL_VERSION}"
 mkdir -p "${OLLAMA_LOG_DIR}"
 
 # ---------------------------------------------------------------------------
-# Pick a free ephemeral port
+# Pick a free ephemeral port (dynamic) — mapped to static port 55077 via
+# SSH tunnel for the Debug/VPN environment
 # ---------------------------------------------------------------------------
 OLPORT=$(python3 -c "
 import socket
@@ -55,8 +69,11 @@ echo "Port:       ${OLPORT}"
 echo "GPU(s):     ${CUDA_VISIBLE_DEVICES}"
 echo "Started:    $(date)"
 echo "============================================================"
+echo "SSH tunnel command (Debug/VPN port 55077):"
+echo "  ssh -L 55077:127.0.0.1:${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu"
+echo "============================================================"
 
-# Write connection info so other scripts can discover this server
+# Write connection info for ollama_port_map.sh and ollama_health_check.sh
 INFO_FILE="${OLLAMA_LOG_DIR}/${MODEL}_${SLURM_JOB_ID}.info"
 cat > "${INFO_FILE}" <<EOF
 JOB_ID=${SLURM_JOB_ID}
@@ -66,21 +83,27 @@ PORT=${OLPORT}
 OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
 STARTED=$(date --iso-8601=seconds)
 EOF
+echo "Server info written to: ${INFO_FILE}"
 
 # ---------------------------------------------------------------------------
-# Load modules
+# Load modules (per TTU Job Submission Guide — load before mpirun)
 # ---------------------------------------------------------------------------
 module purge
 module load gcc
 module load cuda/12.9.0
 
 # ---------------------------------------------------------------------------
-# Start OLLAMA server
+# Start OLLAMA server via mpirun
+# mpirun manages the process under SLURM's task/core allocation so the
+# scheduler can properly track, signal, and clean up the server process.
+# -np 1 : single task (OLLAMA is a multi-threaded server, not MPI-parallel)
 # ---------------------------------------------------------------------------
 LOG_BASE="${OLLAMA_LOG_DIR}/${MODEL}_${OLPORT}"
-"${OLLAMA_BIN}" serve > "${LOG_BASE}.log" 2> "${LOG_BASE}.err" &
+
+echo "Starting OLLAMA server via mpirun (1 task, ${SLURM_CPUS_PER_TASK} CPUs)..."
+mpirun -np 1 "${OLLAMA_BIN}" serve > "${LOG_BASE}.log" 2> "${LOG_BASE}.err" &
 OLLAMA_PID=$!
-echo "OLLAMA server PID: ${OLLAMA_PID}"
+echo "OLLAMA PID: ${OLLAMA_PID}"
 
 # Wait for server to be ready
 echo "Waiting ${OLLAMA_STARTUP_WAIT}s for OLLAMA to initialise..."
@@ -91,17 +114,21 @@ if ! "${OLLAMA_BIN}" list &>/dev/null; then
     echo "ERROR: OLLAMA server did not start. Check ${LOG_BASE}.err"
     exit 1
 fi
+echo "OLLAMA server ready at ${OLLAMA_BASE_URL}"
 
 # ---------------------------------------------------------------------------
-# Pull model if not already cached
+# Pull model if not already in Lustre cache
 # ---------------------------------------------------------------------------
-echo "Pulling model ${FULL_MODEL} (skipped if already cached)..."
+echo "Pulling model ${FULL_MODEL} (no-op if already cached)..."
 "${OLLAMA_BIN}" pull "${FULL_MODEL}"
 
 # ---------------------------------------------------------------------------
-# Run the model (keeps the job alive; remove --verbose for quiet mode)
+# Keep the job alive — OLLAMA serve runs until walltime or scancel
+# The job output file (%x-%j.out) shows the dynamic port for tunnelling
 # ---------------------------------------------------------------------------
-echo "Launching ${FULL_MODEL} in serve mode. Connect at ${OLLAMA_BASE_URL}"
-"${OLLAMA_BIN}" run "${FULL_MODEL}" --verbose
+echo "Serving ${FULL_MODEL} — job will run until walltime (${HPCC_TIME})"
+echo "To connect from your Mac (VPN active):"
+echo "  ssh -L 55077:127.0.0.1:${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu"
+wait ${OLLAMA_PID}
 
 echo "Job finished: $(date)"

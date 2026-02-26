@@ -1,9 +1,14 @@
 #!/bin/bash
 # =============================================================================
 # mpi_run.sh
-# MPI-style launcher: submit a given OLLAMA run script to SLURM across
-# one or more nodes. Each task/node gets its own independent OLLAMA server
-# instance on a dynamically chosen free port.
+# Submit OLLAMA SLURM batch scripts following the TTU HPCC Job Submission Guide.
+#
+# Pattern (per the guide):
+#   1. This script calls `sbatch` to submit the job script to the scheduler
+#   2. Inside each job script, `mpirun -np 1` launches the OLLAMA server so
+#      SLURM properly manages the process under its allocated tasks/cores
+#   3. Each submitted job lands on its own compute node with its own
+#      dynamic port — use ollama_port_map.sh to get the SSH tunnel command
 #
 # Usage:
 #   bash mpi_run.sh <run_script.sh> [num_nodes]
@@ -13,10 +18,6 @@
 #   bash mpi_run.sh run_deepseek_ollama.sh 4       # 4 independent nodes
 #   bash mpi_run.sh run_qwen-coder_ollama.sh 2
 #   bash mpi_run.sh run_codellama_ollama.sh 3
-#
-# Each submitted job is independent; they do NOT communicate via MPI.
-# The "MPI-run" metaphor here means: launch N parallel single-node OLLAMA
-# servers that can be load-balanced or used independently.
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
