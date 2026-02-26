@@ -11,22 +11,18 @@ case $MODEL in
     granite)
         MODEL_NAME="granite4"
         MODEL_VER="3b"
-        BASE_PORT=55077
         ;;
     deepseek)
         MODEL_NAME="deepseek-r1"
         MODEL_VER="8b"
-        BASE_PORT=55088
         ;;
     codellama)
         MODEL_NAME="codellama"
         MODEL_VER="7b"
-        BASE_PORT=66033
         ;;
     qwen)
         MODEL_NAME="qwen2.5-coder"
         MODEL_VER="7b"
-        BASE_PORT=66044
         ;;
     *)
         echo "Unknown model: $MODEL"
@@ -39,34 +35,9 @@ echo "=============================================="
 echo "Starting $MODEL_NAME:$MODEL_VER on $(hostname)"
 echo "=============================================="
 
-check_port() {
-    local port=$1
-    python3 -c "
-import socket
-try:
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('127.0.0.1', $port))
-    s.close()
-    print('available')
-except:
-    print('inuse')
-" 2>/dev/null
-}
-
-AVAILABLE_PORT=""
-for port in $BASE_PORT $(($BASE_PORT + 100)) $(($BASE_PORT + 200)); do
-    if [ "$(check_port $port)" = "available" ]; then
-        AVAILABLE_PORT=$port
-        echo "Using port: $port"
-        break
-    fi
-    echo "Port $port in use, trying next..."
-done
-
-if [ -z "$AVAILABLE_PORT" ]; then
-    echo "ERROR: No available ports found starting from $BASE_PORT"
-    exit 1
-fi
+# Get a dynamic port
+AVAILABLE_PORT=$(python3 -c "import socket; s=socket.socket(); s.bind(('',0)); print(s.getsockname()[1]); s.close()")
+echo "Selected dynamic port: $AVAILABLE_PORT"
 
 export OLLAMA_HOST=127.0.0.1:$AVAILABLE_PORT
 export OLLAMA_BASE_URL="http://localhost:$AVAILABLE_PORT"

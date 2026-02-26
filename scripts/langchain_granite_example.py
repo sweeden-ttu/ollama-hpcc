@@ -3,44 +3,49 @@
 langchain_granite_example.py
 ────────────────────────────
 LangChain integration with IBM Granite 4 (granite4:3b) served by OLLAMA
-on localhost:55077 (TTU HPCC matador GPU cluster, Debug/VPN static port).
+on localhost (dynamic port from HPCC job).
 
 CS 5374 — Software Verification & Validation, Spring 2026
 Texas Tech University
 
 HOW TO INVOKE THE GRANITE AGENT AND RUN THIS SCRIPT
-====================================================
+=====================================================
 
 Step 1 — Tell the agent to start Granite on HPCC (run in Cowork / terminal):
 ─────────────────────────────────────────────────────────────────────────────
   "Use the granite agent to submit a SLURM job on HPCC for the granite model
-   and give me the SSH tunnel command for port 55077."
+   and give me the SSH tunnel command."
 
   Claude will:
     a) ssh sweeden@login.hpcc.ttu.edu
     b) cd ~/ollama-hpcc && sbatch scripts/run_granite_ollama.sh
-    c) Wait for the job to start, then run ollama_port_map.sh --env debug
+    c) Wait for the job to start, get the dynamic port from the output
     d) Print the SSH tunnel command, e.g.:
-         ssh -L 55077:127.0.0.1:<DYNAMIC_PORT> -i ~/.ssh/id_rsa \\
+         ssh -L <PORT>:127.0.0.1:<PORT> -i ~/.ssh/id_rsa \\
              sweeden@login.hpcc.ttu.edu
 
 Step 2 — Open the SSH tunnel (copy-paste from Claude's output):
-─────────────────────────────────────────────────────────────────
-  ssh -L 55077:127.0.0.1:<DYNAMIC_PORT> -i ~/.ssh/id_rsa \\
+────────────────────────────────────────────────────────────────
+  ssh -L <PORT>:127.0.0.1:<PORT> -i ~/.ssh/id_rsa \\
+      sweeden@login.hpcc.ttu.edu
+
+Step 2 — Open the SSH tunnel (copy-paste from Claude's output):
+────────────────────────────────────────────────────────────────
+  ssh -L <PORT>:127.0.0.1:<PORT> -i ~/.ssh/id_rsa \
       sweeden@login.hpcc.ttu.edu
   (leave this terminal open)
 
 Step 3 — Install dependencies locally (once):
-─────────────────────────────────────────────
+────────────────────────────────────────────
   pip install langchain langchain-community langchain-ollama
 
 Step 4 — Run this script:
-─────────────────────────
+────────────────────────
   python3 langchain_granite_example.py
 
 Step 5 — Verify granite agent health before any assignment task:
-────────────────────────────────────────────────────────────────
-  "Use the granite agent to check if port 55077 is healthy."
+───────────────────────────────────────────────────────────────
+  "Use the granite agent to check if the HPCC job is running."
   Claude runs bootstrap.sh which exits 0 on success, or prints a
   clear error + fix instructions if the tunnel is not up.
 
@@ -59,11 +64,33 @@ import json
 import textwrap
 from pathlib import Path
 
-# ── Fail-fast bootstrap ───────────────────────────────────────────────────────
-GRANITE_PORT = 55077
+# ── Configuration ────────────────────────────────────────────────────────────────
+GRANITE_PORT = None  # Set dynamically from job output
 GRANITE_MODEL = "granite4:3b"
-GRANITE_BASE_URL = f"http://localhost:{GRANITE_PORT}"
+GRANITE_BASE_URL = None  # Set dynamically
 BOOTSTRAP_SCRIPT = Path(__file__).parent / "granite-agent" / "scripts" / "bootstrap.sh"
+
+
+def get_granite_port() -> int:
+    """Get the dynamic port from the running job output."""
+    try:
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "cat ~/ollama-hpcc/ollama-granite-*.out 2>/dev/null | grep '^Port:' | head -1 | awk '{print $2}'",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        port = result.stdout.strip()
+        if port.isdigit():
+            return int(port)
+    except:
+        pass
+    # Default fallback - user must set tunnel manually
+    return None
 
 
 def bootstrap_check() -> dict:
@@ -72,12 +99,22 @@ def bootstrap_check() -> dict:
     Exits the process with a clear error if the granite server is unreachable.
     Returns a dict with GRANITE_BASE_URL, GRANITE_MODEL, GRANITE_PORT on success.
     """
+    global GRANITE_PORT, GRANITE_BASE_URL
+
+    GRANITE_PORT = get_granite_port()
+    if not GRANITE_PORT:
+        print("ERROR: Could not determine Granite port from running jobs.")
+        print(
+            "Please start a job with 'granite' and note the dynamic port from the output."
+        )
+        sys.exit(1)
+
+    GRANITE_BASE_URL = f"http://localhost:{GRANITE_PORT}"
     print(f"[bootstrap] Checking Granite server on port {GRANITE_PORT}...")
 
     if BOOTSTRAP_SCRIPT.exists():
         result = subprocess.run(
-            ["bash", str(BOOTSTRAP_SCRIPT)],
-            capture_output=True, text=True
+            ["bash", str(BOOTSTRAP_SCRIPT)], capture_output=True, text=True
         )
         if result.returncode != 0:
             print("\n" + "═" * 60)
@@ -85,12 +122,11 @@ def bootstrap_check() -> dict:
             print("═" * 60)
             print(result.stderr)
             print("═" * 60)
-            print("\nThis script requires the granite4:3b OLLAMA server on port 55077.")
+            print("\nThis script requires the granite4:3b OLLAMA server.")
             print("To start it:")
-            print("  1. ssh sweeden@login.hpcc.ttu.edu")
-            print("     cd ~/ollama-hpcc && sbatch scripts/run_granite_ollama.sh")
-            print("  2. bash ~/ollama-hpcc/scripts/ollama_port_map.sh --env debug")
-            print("  3. Copy-paste the printed SSH tunnel command and leave it open.")
+            print("  1. Run 'granite' or 'granite-interactive'")
+            print("  2. Note the dynamic port from the job output")
+            print("  3. Create SSH tunnel: ssh -L <PORT>:127.0.0.1:<PORT> ...")
             sys.exit(result.returncode)
 
         # Parse eval-able key=value output
@@ -99,12 +135,15 @@ def bootstrap_check() -> dict:
             if "=" in line:
                 k, v = line.split("=", 1)
                 env_vars[k] = v
-        print(f"[bootstrap] ✓ Connected — {env_vars.get('GRANITE_MODEL')} "
-              f"at {env_vars.get('GRANITE_BASE_URL')}")
+        print(
+            f"[bootstrap] ✓ Connected — {env_vars.get('GRANITE_MODEL')} "
+            f"at {env_vars.get('GRANITE_BASE_URL')}"
+        )
         return env_vars
     else:
         # Fallback: direct HTTP check if bootstrap.sh not present
         import urllib.request, urllib.error
+
         try:
             with urllib.request.urlopen(
                 f"{GRANITE_BASE_URL}/api/tags", timeout=5
@@ -112,8 +151,10 @@ def bootstrap_check() -> dict:
                 data = json.loads(resp.read())
             models = [m["name"] for m in data.get("models", [])]
             if not any(GRANITE_MODEL in m for m in models):
-                print(f"[bootstrap] ✗ Model {GRANITE_MODEL} not found. "
-                      f"Available: {models}")
+                print(
+                    f"[bootstrap] ✗ Model {GRANITE_MODEL} not found. "
+                    f"Available: {models}"
+                )
                 sys.exit(2)
             print(f"[bootstrap] ✓ {GRANITE_MODEL} ready at {GRANITE_BASE_URL}")
             return {
@@ -136,10 +177,11 @@ def build_llm(base_url: str, model: str):
     """
     try:
         from langchain_ollama import OllamaLLM
+
         llm = OllamaLLM(
             model=model,
             base_url=base_url,
-            temperature=0.1,       # low temp → deterministic, good for V&V
+            temperature=0.1,  # low temp → deterministic, good for V&V
             num_predict=512,
         )
         print(f"[langchain] Using langchain-ollama OllamaLLM")
@@ -149,6 +191,7 @@ def build_llm(base_url: str, model: str):
 
     try:
         from langchain_community.llms import Ollama
+
         llm = Ollama(
             model=model,
             base_url=base_url,
@@ -169,6 +212,7 @@ def build_chat_model(base_url: str, model: str):
     """
     try:
         from langchain_ollama import ChatOllama
+
         return ChatOllama(
             model=model,
             base_url=base_url,
@@ -179,6 +223,7 @@ def build_chat_model(base_url: str, model: str):
         pass
     try:
         from langchain_community.chat_models import ChatOllama
+
         return ChatOllama(
             model=model,
             base_url=base_url,
@@ -215,10 +260,12 @@ def demo_chain(llm):
     )
     chain = template | llm
 
-    result = chain.invoke({
-        "test_type": "boundary value",
-        "description": "returns True if a given integer is prime"
-    })
+    result = chain.invoke(
+        {
+            "test_type": "boundary value",
+            "description": "returns True if a given integer is prime",
+        }
+    )
     print("Prompt: Boundary value tests for isPrime(n)")
     print(f"\nGranite:\n{result.strip()}")
 
@@ -271,7 +318,7 @@ def demo_vv_workflow(llm):
     func_call = "login(username='alice', password='')"
     actual = "Returns False (login rejected)"
 
-    print(f"\nInformal requirement: \"{informal}\"")
+    print(f'\nInformal requirement: "{informal}"')
     print(f"Function under test:  {func_call}")
     print(f"Actual output:        {actual}")
 
@@ -280,17 +327,13 @@ def demo_vv_workflow(llm):
     print(f"  → {formal_req.strip()}")
 
     print("\n[Stage 2] Generating test oracle...")
-    oracle = oracle_chain.invoke({
-        "formal_req": formal_req.strip(),
-        "func_call": func_call
-    })
+    oracle = oracle_chain.invoke(
+        {"formal_req": formal_req.strip(), "func_call": func_call}
+    )
     print(f"  → {oracle.strip()}")
 
     print("\n[Stage 3] Computing verdict...")
-    verdict = verdict_chain.invoke({
-        "oracle": oracle.strip(),
-        "actual_output": actual
-    })
+    verdict = verdict_chain.invoke({"oracle": oracle.strip(), "actual_output": actual})
     print(f"  → {verdict.strip()}")
 
 
@@ -303,11 +346,15 @@ def demo_conversation(chat_model):
     print("─" * 60)
 
     messages = [
-        SystemMessage(content=(
-            "You are a concise software V&V assistant for CS 5374 at Texas Tech. "
-            "Keep answers to 2 sentences max."
-        )),
-        HumanMessage(content="What is the difference between verification and validation?"),
+        SystemMessage(
+            content=(
+                "You are a concise software V&V assistant for CS 5374 at Texas Tech. "
+                "Keep answers to 2 sentences max."
+            )
+        ),
+        HumanMessage(
+            content="What is the difference between verification and validation?"
+        ),
     ]
 
     print("User: What is the difference between verification and validation?")
@@ -315,9 +362,11 @@ def demo_conversation(chat_model):
     print(f"Granite: {response.content.strip()}")
 
     messages.append(response)
-    messages.append(HumanMessage(
-        content="Give me one real-world example of each from embedded systems."
-    ))
+    messages.append(
+        HumanMessage(
+            content="Give me one real-world example of each from embedded systems."
+        )
+    )
 
     print("\nUser: Give me one real-world example of each from embedded systems.")
     response2 = chat_model.invoke(messages)
@@ -326,33 +375,39 @@ def demo_conversation(chat_model):
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(
-        description="LangChain + Granite4 on HPCC port 55077"
+    parser = argparse.ArgumentParser(description="LangChain + Granite4:3b on HPCC")
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Only check bootstrap, don't run demos",
     )
-    parser.add_argument("--verify-only", action="store_true",
-                        help="Only check bootstrap, don't run demos")
-    parser.add_argument("--prompt", type=str, default=None,
-                        help="Send a single prompt and print the response")
-    parser.add_argument("--vv", action="store_true",
-                        help="Run the CS 5374 V&V workflow demo only")
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        default=None,
+        help="Send a single prompt and print the response",
+    )
+    parser.add_argument(
+        "--vv", action="store_true", help="Run the CS 5374 V&V workflow demo only"
+    )
     args = parser.parse_args()
 
     print("\n" + "═" * 60)
-    print("  LangChain → Granite4:3b @ localhost:55077")
+    print("  LangChain → Granite4:3b @ HPCC (dynamic port)")
     print("  TTU RedRaider HPCC | CS 5374 Spring 2026")
     print("═" * 60)
 
     # ── Step 1: Bootstrap (always) ────────────────────────────────────────────
     env = bootstrap_check()
     base_url = env.get("GRANITE_BASE_URL", GRANITE_BASE_URL)
-    model    = env.get("GRANITE_MODEL",    GRANITE_MODEL)
+    model = env.get("GRANITE_MODEL", GRANITE_MODEL)
 
     if args.verify_only:
         print("\n✓ Bootstrap passed — server is healthy.")
         return
 
     # ── Step 2: Build LangChain LLM ───────────────────────────────────────────
-    llm        = build_llm(base_url, model)
+    llm = build_llm(base_url, model)
     chat_model = build_chat_model(base_url, model)
 
     # ── Step 3: Run demos ─────────────────────────────────────────────────────

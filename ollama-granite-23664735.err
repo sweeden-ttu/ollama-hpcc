@@ -1,4 +1,0 @@
-/var/spool/slurmd/job23664735/slurm_script: line 98: module: command not found
-/var/spool/slurmd/job23664735/slurm_script: line 99: module: command not found
-/var/spool/slurmd/job23664735/slurm_script: line 100: module: command not found
-[2026-02-26T11:06:14.431] error: *** JOB 23664735 ON gpu-21-2 CANCELLED AT 2026-02-26T11:06:14 DUE to SIGNAL Terminated ***

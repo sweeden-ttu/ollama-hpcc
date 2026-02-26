@@ -3,7 +3,7 @@
 # bootstrap.sh — Granite Agent bootstrap & connectivity check
 #
 # This script is the FIRST thing the granite-agent skill runs.
-# It verifies the OLLAMA server on port 55077 is reachable and serving
+# It verifies the OLLAMA server on the dynamic port is reachable and serving
 # the expected granite4:3b model before any prompts are sent.
 #
 # Exit codes:
@@ -14,13 +14,30 @@
 #   4  — required tool missing (curl, python3)
 #
 # On success, stdout includes key=value lines the caller can eval:
-#   GRANITE_BASE_URL=http://localhost:55077
+#   GRANITE_BASE_URL=http://localhost:<PORT>
 #   GRANITE_MODEL=granite4:3b
 # =============================================================================
 
 set -euo pipefail
 
-GRANITE_PORT="${GRANITE_PORT:-55077}"
+# Get dynamic port from running job or use environment variable
+get_granite_port() {
+    if [ -n "${GRANITE_PORT:-}" ]; then
+        echo "$GRANITE_PORT"
+        return
+    fi
+    # Try to get from job output
+    local port
+    port=$(cat ~/ollama-hpcc/ollama-granite-*.out 2>/dev/null | grep '^Port:' | head -1 | awk '{print $2}' || true)
+    if [ -n "$port" ]; then
+        echo "$port"
+        return
+    fi
+    echo "ERROR: Could not determine Granite port. Is the job running?" >&2
+    exit 1
+}
+
+GRANITE_PORT="$(get_granite_port)"
 GRANITE_MODEL_NAME="${GRANITE_MODEL_NAME:-granite4:3b}"
 BASE_URL="http://localhost:${GRANITE_PORT}"
 CONNECT_TIMEOUT=5    # seconds to wait for TCP connection

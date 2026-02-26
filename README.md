@@ -45,10 +45,10 @@ source /Users/owner/projects/ollama-hpcc/scripts/hpcc-aliases.zsh
 ### Submit Batch Jobs
 | Alias | Description |
 |-------|-------------|
-| `granite` | Submit granite batch job (Debug port 55077) |
-| `deepseek` | Submit deepseek batch job (Debug port 55088) |
-| `codellama` | Submit codellama batch job (Debug port 66033) |
-| `qwen` | Submit qwen batch job (Debug port 66044) |
+| `granite` | Submit granite batch job |
+| `deepseek` | Submit deepseek batch job |
+| `codellama` | Submit codellama batch job |
+| `qwen` | Submit qwen batch job |
 
 ### Interactive Sessions
 | Alias | Description |
@@ -60,9 +60,8 @@ source /Users/owner/projects/ollama-hpcc/scripts/hpcc-aliases.zsh
 
 Interactive sessions:
 - Request a GPU node via SLURM
-- Start Ollama server on available port (tries base port, then +100, +200)
+- Start Ollama server on a dynamic port
 - Display SSH tunnel command for local connection
-- Example tunnel: `ssh -q -L 55077:127.0.0.1:55077 -i ~/.ssh/id_rsa sweeden@login.hpcc.ttu.edu`
 
 ### Job Management
 | Alias | Description |
@@ -89,8 +88,7 @@ granite
 
 # Start interactive session
 granite-interactive
-# Then in another terminal:
-ssh -q -L 55077:127.0.0.1:55077 -i ~/.ssh/id_rsa sweeden@login.hpcc.ttu.edu
+# The job output will show the SSH tunnel command with dynamic port
 
 # Run ollama locally (with tunnel active)
 ollama run granite4:3b --verbose

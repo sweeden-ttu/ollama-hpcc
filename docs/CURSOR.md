@@ -52,7 +52,7 @@ Create `.cursor/settings.json` in the project root:
 
 ```json
 {
-  "python.defaultInterpreterPath": "src/python/venv/bin/python",
+  "python.defaultInterpreterPath": "${env:HOME}/miniconda3/envs/LangSmith/bin/python",
   "files.exclude": {
     "**/__pycache__": true,
     "**/*.pyc": true
