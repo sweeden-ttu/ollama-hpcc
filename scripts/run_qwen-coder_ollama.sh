@@ -72,14 +72,14 @@ EOF
 # ---------------------------------------------------------------------------
 source /etc/profile.d/modules.sh
 module purge
-module load gcc/9.3.0
-module load openmpi/3.1.6-cuda
+module load gcc/13.2.0
+module load cuda/11.8.0
 
 # ---------------------------------------------------------------------------
 # Start OLLAMA server
 # ---------------------------------------------------------------------------
 LOG_BASE="${OLLAMA_LOG_DIR}/${MODEL}_${OLPORT}"
-mpirun -np 1 "${OLLAMA_BIN}" serve > "${LOG_BASE}.log" 2> "${LOG_BASE}.err" &
+"${OLLAMA_BIN}" serve > "${LOG_BASE}.log" 2> "${LOG_BASE}.err" &
 OLLAMA_PID=$!
 echo "OLLAMA server PID: ${OLLAMA_PID}"
 

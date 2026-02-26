@@ -14,11 +14,6 @@
 # Following the TTU HPCC Job Submission Guide:
 #   - sbatch submits this script to the SLURM scheduler
 #   - modules are loaded (gcc + cuda) before execution, matching the guide
-#   - mpirun launches the OLLAMA serve process so SLURM properly tracks
-#     and manages it across allocated tasks/cores on the compute node
-#   - A single-task MPI job (--ntasks=1) is correct here because OLLAMA
-#     is a single multi-threaded server, not a distributed MPI program;
-#     mpirun is used to satisfy SLURM's process management expectations
 # =============================================================================
 
 #SBATCH --job-name=ollama-granite
@@ -86,23 +81,20 @@ EOF
 echo "Server info written to: ${INFO_FILE}"
 
 # ---------------------------------------------------------------------------
-# Load modules (per TTU Job Submission Guide — load before mpirun)
+# Load modules
 # ---------------------------------------------------------------------------
 source /etc/profile.d/modules.sh
 module purge
-module load gcc/9.3.0
-module load openmpi/3.1.6-cuda
+module load gcc/13.2.0
+module load cuda/11.8.0
 
 # ---------------------------------------------------------------------------
-# Start OLLAMA server via mpirun
-# mpirun manages the process under SLURM's task/core allocation so the
-# scheduler can properly track, signal, and clean up the server process.
-# -np 1 : single task (OLLAMA is a multi-threaded server, not MPI-parallel)
+# Start OLLAMA server
 # ---------------------------------------------------------------------------
 LOG_BASE="${OLLAMA_LOG_DIR}/${MODEL}_${OLPORT}"
 
-echo "Starting OLLAMA server via mpirun (1 task, ${SLURM_CPUS_PER_TASK} CPUs)..."
-mpirun -np 1 "${OLLAMA_BIN}" serve > "${LOG_BASE}.log" 2> "${LOG_BASE}.err" &
+echo "Starting OLLAMA server (${SLURM_CPUS_PER_TASK} CPUs)..."
+"${OLLAMA_BIN}" serve > "${LOG_BASE}.log" 2> "${LOG_BASE}.err" &
 OLLAMA_PID=$!
 echo "OLLAMA PID: ${OLLAMA_PID}"
 
