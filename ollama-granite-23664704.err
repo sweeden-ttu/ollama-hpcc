@@ -1,6 +1,0 @@
-/var/spool/slurmd/job23664704/slurm_script: line 28: /var/spool/slurmd/job23664704/model_versions.env: No such file or directory
-mkdir: cannot create directory ‘’: No such file or directory
-/var/spool/slurmd/job23664704/slurm_script: line 61: /_23664704.info: Permission denied
-/var/spool/slurmd/job23664704/slurm_script: line 81: /_35547.log: Permission denied
-sleep: invalid time interval ‘’
-Try 'sleep --help' for more information.

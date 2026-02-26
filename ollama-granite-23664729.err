@@ -1,4 +1,0 @@
-/var/spool/slurmd/job23664729/slurm_script: line 41: /var/spool/slurmd/job23664729/model_versions.env: No such file or directory
-/var/spool/slurmd/job23664729/slurm_script: line 91: module: command not found
-/var/spool/slurmd/job23664729/slurm_script: line 92: module: command not found
-/var/spool/slurmd/job23664729/slurm_script: line 93: module: command not found

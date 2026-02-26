@@ -22,9 +22,7 @@ wheels/
 .coverage
 htmlcov/
 .env
-.venv
 env/
-venv/
 *.log
 .DS_Store
 .idea/

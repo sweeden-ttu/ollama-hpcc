@@ -13,21 +13,21 @@ hpcc-login() {
     ssh -q sweeden@login.hpcc.ttu.edu
 }
 
-# Model-specific aliases (Debug ports: granite=55077, deepseek=55088, qwen=66044, codellama=66033)
+# Submit batch jobs - uses dynamic ports
 granite() {
-    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_granite_ollama.sh ${1:-DEBUG} ${2:-55077}"
+    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_granite_ollama.sh"
 }
 
 codellama() {
-    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_codellama_ollama.sh ${1:-DEBUG} ${2:-66033}"
+    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_codellama_ollama.sh"
 }
 
 deepseek() {
-    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_deepseek_ollama.sh ${1:-DEBUG} ${2:-55088}"
+    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_deepseek_ollama.sh"
 }
 
 qwen() {
-    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_qwen_ollama.sh ${1:-DEBUG} ${2:-66044}"
+    ssh -q sweeden@login.hpcc.ttu.edu "./ollama-hpcc/scripts/run_qwen_ollama.sh"
 }
 
 # Interactive model sessions - use salloc + srun to allocate GPU node and run ollama
