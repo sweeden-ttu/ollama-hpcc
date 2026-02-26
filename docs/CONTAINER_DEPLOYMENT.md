@@ -20,8 +20,12 @@ docker.io/autosubmit/slurm-openssh-container:latest
 
 | Model | Port |
 |-------|------|
-| granite4 | 55077 |
+| granite | 55077 |
+| deepseek | 55088 |
 | qwen-coder | 66044 |
+| codellama | 66033 |
+
+Full mapping (all environments): **docs/AGENTS.md**.
 
 ## Container Setup
 
