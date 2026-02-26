@@ -1,0 +1,11 @@
+============================================================
+Job:        ollama-granite (ID: 23664704)
+Node:       gpu-21-2
+Model:      :
+Port:       35547
+GPU(s):     0
+Started:    Thu Feb 26 10:45:08 CST 2026
+============================================================
+OLLAMA server PID: 1396797
+Waiting s for OLLAMA to initialise...
+ERROR: OLLAMA server did not start. Check /_35547.err

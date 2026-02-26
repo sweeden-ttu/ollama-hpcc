@@ -1,0 +1,16 @@
+============================================================
+Job:        ollama-granite (ID: 23664732)
+Node:       gpu-21-2
+Model:      granite4:3b
+Port:       51747
+GPU(s):     0
+Started:    Thu Feb 26 11:05:07 CST 2026
+============================================================
+SSH tunnel command (Debug/VPN port 55077):
+  ssh -L 55077:127.0.0.1:51747 -i ~/.ssh/id_rsa sweeden@login.hpcc.ttu.edu
+============================================================
+Server info written to: /home/sweeden/ollama-logs/granite4_23664732.info
+Starting OLLAMA server via mpirun (1 task, 2 CPUs)...
+OLLAMA PID: 1397735
+Waiting 10s for OLLAMA to initialise...
+ERROR: OLLAMA server did not start. Check /home/sweeden/ollama-logs/granite4_51747.err
