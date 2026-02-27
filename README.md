@@ -95,10 +95,10 @@ Use this procedure to create an SSH tunnel from your Mac to the Ollama server.
 ssh sweeden@login.hpcc.ttu.edu -L pppp:cpu-NN-nn:pppp
 ```
 
-Example: if the node is `cpu-01-42` and the port is `35441`:
+Example: if the node is `cpu-01-42` and the port is `34935`:
 
 ```bash
-ssh sweeden@login.hpcc.ttu.edu -L 35441:cpu-01-42:35441
+ssh sweeden@login.hpcc.ttu.edu -L 34935:cpu-01-42:34935
 ```
 
 Then use Ollama locally:
