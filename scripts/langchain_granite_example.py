@@ -28,7 +28,7 @@ Step 2 — Create the SSH tunnel (use this format):
   2. Note the node name (e.g. cpu-NN-nn) and port from the job/session.
   3. From your Mac: ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp
      (substitute pppp and NODE from step 2). Example:
-     ssh sweeden@login.hpcc.ttu.edu -L 37659:cpu-01-42:37659
+     ssh sweeden@login.hpcc.ttu.edu -L 35441:cpu-01-42:35441
   (leave this terminal open)
 
 Step 3 — Install dependencies locally (once):
