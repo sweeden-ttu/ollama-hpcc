@@ -1,198 +1,101 @@
-# OLLAMA on TTU RedRaider HPCC — Script Reference
+# Ollama on HPCC: Slurm Job + Port Forward to Mac
 
-Scripts for running multiple OLLAMA LLM servers on the **matador** GPU partition
-of Texas Tech's RedRaider HPCC cluster.
-
----
-
-## Model Versions (as of 2026-02-26)
-
-| Variable | Model | Tag | Params | VRAM est. | Notes |
-|---|---|---|---|---|---|
-| `GRANITE_MODEL` | `granite4` | `3b` | 3B | ~2.1 GB | IBM Granite 4 "micro"; also `:1b` (3.3GB) and `-h` hybrid Mamba-2 variants |
-| `DEEPSEEK_MODEL` | `deepseek-r1` | `8b` | 8B | ~5.2 GB | R1-0528-Qwen3 distill |
-| `QWENCODER_MODEL` | `qwen2.5-coder` | `7b` | 7B | ~4.7 GB | |
-| `CODELLAMA_MODEL` | `codellama` | `7b` | 7B | ~3.8 GB | |
-
-All versions and tags are set in `model_versions.env`. Edit there to upgrade.
+This guide covers running Ollama as a Slurm batch job on the HPCC cluster and using it from your Mac via SSH port forwarding.
 
 ---
 
-## Quick Start
+## Where things run
 
-### 1. Pre-pull model weights (do this once)
-```bash
-sbatch scripts/ollama_pull_models.sh
-```
-Pulls all four models to your Lustre cache so batch jobs start instantly.
+| Where | What runs |
+|-------|-----------|
+| **HPCC cluster** | Slurm job (`slurm_submit.sh`) allocates a node (e.g. `matador1`), starts `ollama serve` there, and picks a dynamic port. |
+| **Your Mac** | Port forward (SSH `-L`) and the Ollama client (`ollama run`, `ollama list`, etc.). |
 
-### 2. Launch a single model
-```bash
-sbatch scripts/run_granite_ollama.sh
-sbatch scripts/run_deepseek_ollama.sh
-sbatch "scripts/run_qwen-coder_ollama.sh"
-sbatch scripts/run_codellama_ollama.sh
-```
-
-### 3. Launch a model with multiple nodes (load-balanced pool)
-```bash
-bash scripts/mpi_run.sh run_granite_ollama.sh 4   # 4 independent granite servers
-```
-
-### 4. Launch all models at once
-```bash
-bash scripts/mpi_run_all.sh          # 1 node per model
-bash scripts/mpi_run_all.sh 2        # 2 nodes per model
-```
+The Ollama server runs only on the compute node. Your Mac runs only the client and talks to the server through the tunnel.
 
 ---
 
-## Monitoring
+## Run the model: from the job or from the client?
+
+**Run `ollama run <model>` from your Mac after you set up the port forward.** Do not add it after the server start in the Slurm script.
+
+- **`ollama run` is interactive** — In the script it would start a chat REPL and block the job. You’d be tied to the job’s stdin/stdout instead of your local terminal.
+- **Port is chosen at runtime** — The script picks a dynamic port and prints it in the job’s `.out` file. You need that port to create the tunnel, then you use the client with that tunnel.
+- **Model loads on first request** — Once the server is up and you’ve tunneled to it, the first `ollama run` (or API call) from your Mac will make the server load/pull the model. No need to “run” the model inside the job.
+
+---
+
+## How you know the node name and port
+
+When you use the batch job (`sbatch job/slurm_submit.sh`):
+
+1. After the job starts, the **.out file** (e.g. `12345_graniteGPU.out`) is written in the directory where you ran `sbatch`.
+2. It contains lines like:
+   - `NODE=gpu-nn-nn` (or whatever node the job got)
+   - `PORT=41234` (the dynamic port)
+   - `TUNNEL_FROM_MAC: ssh -L 41234:gpu-nn-nn:41234 sweeden@login.hpcc.ttu.edu`
+
+**On HPCC, after the job is running:**
 
 ```bash
-# Show all running OLLAMA SLURM jobs + discovered server info
-bash scripts/ollama_list_jobs.sh
+grep -E 'NODE=|PORT=|TUNNEL_FROM_MAC' <jobid>_*GPU.out
+# Or just:
+cat <jobid>_graniteGPU.out
+```
 
-# Health-check every running server (HTTP ping + SLURM state)
-bash scripts/ollama_health_check.sh
+You can also get the node from Slurm (from the same machine you submitted from):
 
-# Machine-readable JSON output
-bash scripts/ollama_health_check.sh --json
+```bash
+squeue -u $USER -o "%.18i %.9P %.30j %.8u %.2t %.10M %.6D %R"
+# Nodelist is the last column (%R)
 ```
 
 ---
 
-## Connecting from Your Laptop
+## Port forward setup
 
-To create a tunnel to Ollama on HPCC, use this format:
+Port forwarding is done **on your Mac**, not in the Slurm script. The script only prints the exact command you should run on your Mac.
 
-1. **Login to interactive nocona** (on HPCC): `/etc/slurm/scripts/interactive -p nocona`
-2. Note the **node name** (e.g. `cpu-NN-nn`) and **Ollama dynamic port** (pppp) from the job or session output.
-3. **From your Mac:** `ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp` (substitute NODE and pppp from step 2).
+**On your Mac:**
 
-Each job also writes a `~/ollama-logs/<model>_<jobid>.info` file containing the
-compute node hostname and dynamic port. Then from your laptop:
+1. Get **NODE** and **PORT** from the job’s `.out` file (or from the `TUNNEL_FROM_MAC` line).
+2. Start the tunnel (one SSH session; leave it open):
 
-```bash
-# After tunnel is up (see above)
-curl http://localhost:<pppp>/api/tags
-OLLAMA_HOST=http://localhost:<pppp> ollama run granite3.3:8b
-```
+   ```bash
+   ssh -L PORT:NODE:PORT $USER@login.hpcc.ttu.edu
+   ```
 
----
+   Example (port `41234`, node `matador1`):
 
-## Static ↔ Dynamic Port Mapping
+   ```bash
+   ssh -L 41234:matador1:41234 sweeden@login.hpcc.ttu.edu
+   ```
 
-Each OLLAMA job binds a random dynamic port. `ollama_port_map.sh` reads the
-running `.info` files and maps those dynamic ports to your pre-agreed static
-ports for each environment, then generates SSH tunnel commands.
+3. In **another** terminal on your Mac, use Ollama:
 
-### Static port table
+   ```bash
+   OLLAMA_HOST=127.0.0.1:41234 ollama list
+   OLLAMA_HOST=127.0.0.1:41234 ollama run granite4:3b
+   ```
 
-| Environment        | granite | deepseek | qwen-coder | codellama |
-|--------------------|---------|----------|------------|-----------|
-| Debug (VPN)        | 55077   | 55088    | 66044      | 66033     |
-| Testing +1 (macOS) | 55177   | 55188    | 66144      | 66133     |
-| Testing +2 (Rocky) | 55277   | 55288    | 66244      | 66233     |
-| Release +3         | 55377   | 55388    | 66344      | 66333     |
-
-### Usage
-
-```bash
-# Human-readable table + ready-to-paste SSH commands for all environments
-bash scripts/ollama_port_map.sh
-
-# Write ~/ollama-logs/port_map.json (also prints to stdout)
-bash scripts/ollama_port_map.sh --json
-
-# Filter to one environment
-bash scripts/ollama_port_map.sh --env debug
-bash scripts/ollama_port_map.sh --env testing1
-bash scripts/ollama_port_map.sh --env testing2
-bash scripts/ollama_port_map.sh --env release
-
-# JSON for a single environment
-bash scripts/ollama_port_map.sh --json --env debug
-```
-
-### Example SSH tunnel (granite, after job reports node and port)
-
-To create a tunnel, use this format:
-
-1. Login to interactive nocona on HPCC: `/etc/slurm/scripts/interactive -p nocona`
-2. Note the node name (e.g. `cpu-NN-nn`) and port from the job/session.
-3. From your Mac: `ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp`
-
-Example (substitute actual node and port):
-
-```bash
-ssh sweeden@login.hpcc.ttu.edu -L 55077:cpu-01-42:55077
-```
-
-The script generates ready-to-paste SSH commands for every model/environment
-combination based on the currently running `.info` files. Once the tunnel is
-up, reach the model at `http://localhost:<local_port>` from your local machine.
+So: the port forward is set up on the Mac with that `ssh -L` command; the tunnel script on HPCC (`slurm_tunnel.sh`) only prints instructions and does not create the forward itself.
 
 ---
 
-## Teardown
+## Quick reference
 
-```bash
-# Cancel all OLLAMA jobs
-bash scripts/ollama_teardown.sh --all
-
-# Cancel only deepseek jobs
-bash scripts/ollama_teardown.sh --model deepseek
-
-# Cancel a specific job
-bash scripts/ollama_teardown.sh --job 123456
-
-# Remove stale .info files for completed jobs
-bash scripts/ollama_teardown.sh --clean
-```
+| Step | Where | Command / action |
+|------|--------|-------------------|
+| Start server | HPCC | `sbatch job/slurm_submit.sh [granite\|deepseek\|codellama\|qwen]` |
+| Get node & port | HPCC | `grep -E 'NODE=\|PORT=\|TUNNEL_FROM_MAC' <jobid>_*GPU.out` |
+| Create tunnel | **Mac** | `ssh -L PORT:NODE:PORT $USER@login.hpcc.ttu.edu` (keep this session open) |
+| Use Ollama | **Mac** | `OLLAMA_HOST=127.0.0.1:PORT ollama run <model>` |
 
 ---
 
-## File Reference
+## Batch job vs interactive tunnel script
 
-| File | Purpose |
-|---|---|
-| `model_versions.env` | Central config: model tags, SLURM defaults |
-| `run_granite_ollama.sh` | SLURM job: IBM Granite 4 3B |
-| `run_deepseek_ollama.sh` | SLURM job: DeepSeek-R1 8B |
-| `run_qwen-coder_ollama.sh` | SLURM job: Qwen2.5-Coder 7B |
-| `run_codellama_ollama.sh` | SLURM job: CodeLlama 7B |
-| `mpi_run.sh` | Submit N parallel instances of any run script |
-| `mpi_run_all.sh` | Submit all four models at once |
-| `ollama_pull_models.sh` | Pre-warm model cache (run once) |
-| `ollama_list_jobs.sh` | Show running jobs + server info |
-| `ollama_health_check.sh` | HTTP + SLURM health table |
-| `ollama_connect.sh` | SSH tunnel from laptop to compute node (ad-hoc) |
-| `ollama_port_map.sh` | Map dynamic→static ports; generate SSH tunnel cmds; output JSON |
-| `ollama_teardown.sh` | Cancel jobs / clean up stale .info files |
+- **`slurm_submit.sh`** — Batch job: starts `ollama serve` on the allocated node and keeps the job alive. Get NODE and PORT from the job’s `.out` file, then run the `ssh -L` and `OLLAMA_HOST=... ollama` commands on your Mac.
+- **`slurm_tunnel.sh`** — Interactive Slurm allocation (e.g. `salloc`). Use it when you want a shell on a node and will start Ollama yourself in that session. After you get the shell, the script prints generic tunnel instructions; substitute the node you’re on and the port Ollama reports.
 
----
-
-## SLURM Defaults (matador partition)
-
-```
-Partition:    matador
-GPUs/node:    1
-CPUs/task:    8
-Mem/CPU:      4096 MB
-Walltime:     8 hours
-```
-
-Adjust in `model_versions.env` or override per-script with `#SBATCH` lines.
-
----
-
-## Notes
-
-- OLLAMA binaries are expected at `~/ollama-latest/bin/ollama`
-- Server logs go to `~/ollama-logs/<model>_<port>.log`
-- Each job auto-discovers a free TCP port via Python socket binding
-- The `OLLAMA_HOST` env var scopes each server to `127.0.0.1` only (no
-  inter-node exposure); use `ollama_connect.sh` for external access
-- Example scripts in `/lustre/work/examples/matador/` on the cluster
-  can serve as additional reference for matador-specific SLURM options
+For the typical “run Ollama in the background on a GPU node and use it from my Mac” workflow, use the batch job and the Mac steps above.

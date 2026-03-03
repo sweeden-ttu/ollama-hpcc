@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #!/bin/zsh
 
 # Remove any existing hpcc alias to avoid conflicts
@@ -16,19 +15,19 @@ hpcc-login() {
 
 # Submit batch jobs - uses dynamic ports (sbatch on HPCC)
 granite() {
-    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && sbatch scripts/run_granite_ollama.sh"
+    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit.sh granite"
 }
 
 codellama() {
-    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && sbatch scripts/run_codellama_ollama.sh"
+    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit.sh codellama"
 }
 
 deepseek() {
-    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && sbatch scripts/run_deepseek_ollama.sh"
+    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit.sh deepseek"
 }
 
 qwen() {
-    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && sbatch scripts/run_qwen-coder_ollama.sh"
+    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit.sh qwen"
 }
 
 # SSH tunnel to Ollama on HPCC
@@ -86,27 +85,6 @@ hpcc-git-status() {
 }
 
 
-# Wait for job to start and show connection info
-# Usage: hpcc-wait-for-job [job-id]
-#   OR: hpcc-wait-for-job [model-name] (submits job first)
-hpcc-wait-for-job() {
-  local HPCC_SSH="ssh -q sweeden@login.hpcc.ttu.edu"
-=======
-# =============================================================================
-# hpcc-aliases.zsh — HPCC / RedRaider client aliases and functions
-# Source from ~/.zshrc:  [ -f ~/ollama-hpcc/scripts/hpcc-aliases.zsh ] && source ~/ollama-hpcc/scripts/hpcc-aliases.zsh
-# Specs: README.md, PIPELINE.md, OpenMPI.md, OLLAMA.md
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Connection
-# -----------------------------------------------------------------------------
-alias hpcc='ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu'
-alias hpcc-login='ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu'
-
-# -----------------------------------------------------------------------------
-# Environment introspection (node, ollama_host, ollama_base_url, model, port)
-# -----------------------------------------------------------------------------
 hpcc-info() {
   ssh -q sweeden@login.hpcc.ttu.edu "squeue -u \$USER"
   echo ""
@@ -233,30 +211,20 @@ hpcc-git-pull() {
 }
 
 # -----------------------------------------------------------------------------
-# Batch job submission (model-specific)
+# Batch job submission (model-specific) — uses job/slurm_submit.sh
 # -----------------------------------------------------------------------------
 granite() {
-  ssh -q sweeden@login.hpcc.ttu.edu 'cd ~/ollama-hpcc && sbatch scripts/run_granite_ollama.sh'
+  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit.sh granite'
 }
 deepseek() {
-  ssh -q sweeden@login.hpcc.ttu.edu 'cd ~/ollama-hpcc && sbatch scripts/run_deepseek_ollama.sh'
+  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit.sh deepseek'
 }
 codellama() {
-  ssh -q sweeden@login.hpcc.ttu.edu 'cd ~/ollama-hpcc && sbatch scripts/run_codellama_ollama.sh'
+  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit.sh codellama'
 }
 qwen() {
-  ssh -q sweeden@login.hpcc.ttu.edu 'cd ~/ollama-hpcc && sbatch scripts/run_qwen-coder_ollama.sh'
+  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit.sh qwen'
 }
-
-# -----------------------------------------------------------------------------
-# Interactive GPU session (Matador: 8 CPUs, 1 GPU). Once on the node run:
-#   ~/ollama-hpcc/scripts/interactive_ollama.sh granite
-# (or deepseek, codellama, qwen)
-# -----------------------------------------------------------------------------
-alias granite-interactive="ssh -q -t sweeden@login.hpcc.ttu.edu '/etc/slurm/scripts/interactive -c 8 -g 1 -p matador'"
-alias deepseek-interactive="ssh -q -t sweeden@login.hpcc.ttu.edu '/etc/slurm/scripts/interactive -c 8 -g 1 -p matador'"
-alias codellama-interactive="ssh -q -t sweeden@login.hpcc.ttu.edu '/etc/slurm/scripts/interactive -c 8 -g 1 -p matador'"
-alias qwen-interactive="ssh -q -t sweeden@login.hpcc.ttu.edu '/etc/slurm/scripts/interactive -c 8 -g 1 -p matador'"
 
 # -----------------------------------------------------------------------------
 # Wait for job to start and show connection info
@@ -265,7 +233,6 @@ alias qwen-interactive="ssh -q -t sweeden@login.hpcc.ttu.edu '/etc/slurm/scripts
 # -----------------------------------------------------------------------------
 hpcc-wait-for-job() {
   local HPCC_SSH="ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu"
->>>>>>> 768bef3f2b3a61570d0a1839270e88bf35e26554
   local job_id model_name
   
   if [[ -z "$1" ]]; then
@@ -279,7 +246,7 @@ hpcc-wait-for-job() {
   else
     model_name="$1"
     echo "Submitting $model_name job..."
-    job_id=$($HPCC_SSH "cd ~/ollama-hpcc && sbatch scripts/run_${model_name}_ollama.sh" | grep -oP '\d+')
+    job_id=$($HPCC_SSH "sbatch ~/job/slurm_submit.sh $model_name" | grep -oP '\d+')
     echo "Submitted job: $job_id"
   fi
   
@@ -305,7 +272,7 @@ hpcc-wait-for-job() {
   
   echo ""
   echo "=== Connection Info ==="
-  local conn_info=$($HPCC_SSH "grep -E 'NODE=|PORT=|TUNNEL_FROM_MAC=' ~/ollama-hpcc/*${job_id}*.out 2>/dev/null" || echo "")
+  local conn_info=$($HPCC_SSH "grep -E 'NODE=|PORT=|TUNNEL_FROM_MAC=' ~/*${job_id}*.out ~/ollama-hpcc/*${job_id}*.out 2>/dev/null" || echo "")
   
   if [[ -n "$conn_info" ]]; then
     echo "$conn_info"
