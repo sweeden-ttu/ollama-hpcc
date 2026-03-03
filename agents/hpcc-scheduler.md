@@ -13,15 +13,6 @@ You must know the memory requirements for these Ollama models:
 | codellama:7b | ~3.8GB | ~8GB VRAM | 32K+ |
 | qwen2.5-coder:7b | ~4.4GB | ~8GB VRAM | 32K+ |
 
-## Available Partitions
-
-| Partition | GPUs | Nodes | State |
-|-----------|------|-------|-------|
-| toreador | A100 (3/node) | 11 | Full (all allocated) |
-| matador | V100 (2/node) | 20 | MIXED/ALLOCATED |
-| nocona | CPU only | 240 | Mostly allocated |
-| quanah | CPU only | 464 | Mostly allocated |
-| gpu-build | None configured | 1 | IDLE |
 
 ## Essential SLURM Commands
 

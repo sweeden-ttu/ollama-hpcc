@@ -87,9 +87,9 @@ So: the port forward is set up on the Mac with that `ssh -L` command; the tunnel
 | Step | Where | Command / action |
 |------|--------|-------------------|
 | 1. Start server | HPCC | `granite` or `deepseek` or `codellama` or `qwen` |
-| 2. Get node & port | **Mac** | `hpcc-env` (reads ~/ollama-logs/*.info, prints NODE/PORT/MODEL) |
-| 3. Create tunnel | **Mac** | `hpcc-tunnel [MODEL]` e.g. `hpcc-tunnel granite4` |
-| 4. Use Ollama | **Mac** | `hpcc-update-env` (sets .env and runs `ollama run <model>`) |
+| 2. Get node & port | **HPCC** | `hpcc-env` (reads ~/ollama-logs/*.info, prints NODE/PORT/MODEL) |
+| 3. Create tunnel | **Mac** | `hpcc-tunnel [MODEL]` e.g. `hpcc-tunnel gpu-20-21 granite` connects Mac-->login.hpcc.ttu.edu |
+| 4. Use Ollama | **Mac** | `hpcc-tunnel-jump` connect login --> gpu |
 
 All aliases are defined in `scripts/hpcc-aliases.zsh`.
 

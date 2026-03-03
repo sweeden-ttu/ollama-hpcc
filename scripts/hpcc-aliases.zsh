@@ -3,89 +3,6 @@
 # Remove any existing hpcc alias to avoid conflicts
 unalias hpcc 2>/dev/null
 
-# Run commands on remote HPCC
-hpcc() {
-    ssh -q sweeden@login.hpcc.ttu.edu "$@"
-}
-
-# SSH into HPCC login node
-hpcc-login() {
-    ssh -q sweeden@login.hpcc.ttu.edu
-}
-
-# Submit batch jobs - uses dynamic ports (sbatch on HPCC)
-granite() {
-    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit_gpu.sh granite"
-}
-
-codellama() {
-    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit_gpu.sh codellama"
-}
-
-deepseek() {
-    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit_gpu.sh deepseek"
-}
-
-qwen() {
-    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit_gpu.sh qwen"
-}
-
-# SSH tunnel to Ollama on HPCC
-# Usage: hpcc-tunnel PORT [NODE]
-#   PORT - remote (and local) port, e.g. from job output
-#   NODE - compute node hostname (omit for interactive on login node, use 127.0.0.1)
-# Example: hpcc-tunnel 56905 matador07
-hpcc-tunnel() {
-    local port="${1:?Usage: hpcc-tunnel PORT [NODE]}"
-    local node="${2:-127.0.0.1}"
-    ssh -q -i ~/.ssh/id_rsa -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N sweeden@login.hpcc.ttu.edu -L "${port}:${node}:${port}" 
-}
-
-# Interactive model sessions - use salloc + srun to allocate GPU node and run ollama
-granite-interactive() {
-    ssh -t -q sweeden@login.hpcc.ttu.edu "salloc --nodes=1 --ntasks=1 --cpus-per-task=4 --gpus=1 --partition=matador --time=02:30:00 srun --preserve-env --pty bash -lc '~/ollama-hpcc/scripts/interactive_ollama.sh granite'"
-}
-
-deepseek-interactive() {
-    ssh -t -q sweeden@login.hpcc.ttu.edu "salloc --nodes=1 --ntasks=1 --cpus-per-task=8 --gpus=1 --partition=matador --time=02:30:00 srun --preserve-env --pty bash -lc '~/ollama-hpcc/scripts/interactive_ollama.sh deepseek'"
-}
-
-codellama-interactive() {
-    ssh -t -q sweeden@login.hpcc.ttu.edu "salloc --nodes=1 --ntasks=1 --cpus-per-task=6 --gpus=1 --partition=matador --time=02:30:00 srun --preserve-env --pty bash -lc '~/ollama-hpcc/scripts/interactive_ollama.sh codellama'"
-}
-
-qwen-interactive() {
-    ssh -t -q sweeden@login.hpcc.ttu.edu "salloc --nodes=1 --ntasks=1 --cpus-per-task=6 --gpus=1 --partition=matador --time=02:30:00 srun --preserve-env --pty bash -lc '~/ollama-hpcc/scripts/interactive_ollama.sh qwen'"
-}
-
-# Git aliases for HPCC
-hpcc-jobs() {
-    ssh -q sweeden@login.hpcc.ttu.edu "squeue -u sweeden"
-}
-
-hpcc-git-pull() {
-    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && git pull"
-}
-
-# Add SLURM job output/error files (guide format: %x.o%j / %x.e%j → jobname.oJOBID, jobname.eJOBID)
-hpcc-git-add() {
-    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && git add ollama-*.o* ollama-*.e* 2>/dev/null; true"
-}
-
-hpcc-git-commit() {
-    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && git commit -m \"$1\""
-}
-
-hpcc-git-push() {
-    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && git push"
-}
-
-hpcc-git-status() {
-    ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && git status"
-}
-
-
-
 # =============================================================================
 # hpcc-aliases.zsh — HPCC / RedRaider client aliases and functions
 # Source from ~/.zshrc:  [ -f ~/ollama-hpcc/scripts/hpcc-aliases.zsh ] && source ~/ollama-hpcc/scripts/hpcc-aliases.zsh
@@ -265,10 +182,33 @@ hpcc-tunnel() {
 }
 
 # -----------------------------------------------------------------------------
+# Second hop: from login node to compute node (run after hpcc-tunnel-jump from Mac to establish login->node forward, then hpcc-tunnel PORT 127.0.0.1 to reach it from Mac)
+# Usage: hpcc-tunnel-jump PORT NODE
+# -----------------------------------------------------------------------------
+hpcc-tunnel-jump() {
+  local port="${1:?Usage: hpcc-tunnel-jump PORT NODE}"
+  local node="${2:?Usage: hpcc-tunnel-jump PORT NODE}"
+  ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu "ssh -L ${port}:localhost:${port} ${node} -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N -f"
+  echo "Jump tunnel started (login -> $node:$port). From Mac run: hpcc-tunnel $port 127.0.0.1"
+}
+
+# -----------------------------------------------------------------------------
 # Repo update on HPCC
 # -----------------------------------------------------------------------------
 hpcc-git-pull() {
   ssh -q sweeden@login.hpcc.ttu.edu 'cd ~/ollama-hpcc && git pull'
+}
+hpcc-git-add() {
+  ssh -q sweeden@login.hpcc.ttu.edu 'cd ~/ollama-hpcc && git add ollama-*.o* ollama-*.e* 2>/dev/null; true'
+}
+hpcc-git-commit() {
+  ssh -q sweeden@login.hpcc.ttu.edu "cd ~/ollama-hpcc && git commit -m \"$1\""
+}
+hpcc-git-push() {
+  ssh -q sweeden@login.hpcc.ttu.edu 'cd ~/ollama-hpcc && git push'
+}
+hpcc-git-status() {
+  ssh -q sweeden@login.hpcc.ttu.edu 'cd ~/ollama-hpcc && git status'
 }
 
 # -----------------------------------------------------------------------------
@@ -285,6 +225,20 @@ codellama() {
 }
 qwen() {
   ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit_gpu.sh qwen'
+}
+
+# Interactive model sessions (salloc + srun on GPU node)
+granite-interactive() {
+  ssh -t -q sweeden@login.hpcc.ttu.edu "salloc --nodes=1 --ntasks=1 --cpus-per-task=4 --gpus=1 --partition=matador --time=02:30:00 srun --preserve-env --pty bash -lc '~/ollama-hpcc/scripts/interactive_ollama.sh granite'"
+}
+deepseek-interactive() {
+  ssh -t -q sweeden@login.hpcc.ttu.edu "salloc --nodes=1 --ntasks=1 --cpus-per-task=8 --gpus=1 --partition=matador --time=02:30:00 srun --preserve-env --pty bash -lc '~/ollama-hpcc/scripts/interactive_ollama.sh deepseek'"
+}
+codellama-interactive() {
+  ssh -t -q sweeden@login.hpcc.ttu.edu "salloc --nodes=1 --ntasks=1 --cpus-per-task=6 --gpus=1 --partition=matador --time=02:30:00 srun --preserve-env --pty bash -lc '~/ollama-hpcc/scripts/interactive_ollama.sh codellama'"
+}
+qwen-interactive() {
+  ssh -t -q sweeden@login.hpcc.ttu.edu "salloc --nodes=1 --ntasks=1 --cpus-per-task=6 --gpus=1 --partition=matador --time=02:30:00 srun --preserve-env --pty bash -lc '~/ollama-hpcc/scripts/interactive_ollama.sh qwen'"
 }
 
 # -----------------------------------------------------------------------------
@@ -343,25 +297,45 @@ hpcc-wait-for-job() {
     sleep 60
   done
 
-  # Give the job script time to write the .info file (OLLAMA_LOG_DIR on compute node)
-  sleep 5
+  # Map short model name to .info filename prefix (MODEL_NAME on HPCC)
+  local model_prefix="$model_name"
+  case "$model_name" in
+    granite) model_prefix="granite4" ;;
+    deepseek) model_prefix="deepseek-r1" ;;
+    qwen) model_prefix="qwen2.5-coder" ;;
+    codellama) model_prefix="codellama" ;;
+  esac
+
+  # Poll for .info file (job script writes it after ollama serve is ready), up to 30s
+  echo "Waiting for connection info..."
+  local conn_info=""
+  local out_content=""
+  for _ in {1..30}; do
+    conn_info=$("${HPCC_SSH[@]}" "grep -E '^NODE=|^PORT=' ~/ollama-logs/${model_prefix}_${job_id}.info 2>/dev/null" | tr -d '\r')
+    if [[ -n "$conn_info" ]]; then
+      break
+    fi
+    conn_info=$("${HPCC_SSH[@]}" "grep -E '^NODE=|^PORT=' ~/ollama-logs/*_${job_id}.info 2>/dev/null" | tr -d '\r')
+    if [[ -n "$conn_info" ]]; then
+      break
+    fi
+    # Fallback: parse NODE/PORT from Slurm .out file
+    out_content=$("${HPCC_SSH[@]}" "cat ~/job/${job_id}_*.out 2>/dev/null" | tr -d '\r')
+    if [[ -n "$out_content" ]]; then
+      conn_info=$(echo "$out_content" | grep -E '^NODE=|^PORT=')
+      if [[ -n "$conn_info" ]]; then
+        break
+      fi
+    fi
+    sleep 1
+  done
 
   echo ""
   echo "=== Connection Info ==="
-  # Connection info from ~/ollama-logs/ on the host
-  local conn_info=$("${HPCC_SSH[@]}" "grep -E '^NODE=|^PORT=' ~/ollama-logs/*${job_id}*.info 2>/dev/null" || echo "")
-
-  if [[ -z "$conn_info" ]]; then
-    conn_info=$("${HPCC_SSH[@]}" "grep -E '^NODE=|^PORT=' ~/ollama-logs/*_${job_id}.info 2>/dev/null" || echo "")
-  fi
-  if [[ -z "$conn_info" ]]; then
-    conn_info=$("${HPCC_SSH[@]}" "latest=\$(ls -t ~/ollama-logs/*.info 2>/dev/null | head -1); [ -n \"\$latest\" ] && grep -E '^NODE=|^PORT=' \"\$latest\" 2>/dev/null" || echo "")
-  fi
-
   if [[ -n "$conn_info" ]]; then
     echo "$conn_info"
   else
-    echo "(No NODE/PORT found for job $job_id in ~/ollama-logs/; check hpcc-jobs and that job writes .info there)"
+    echo "(No NODE/PORT found for job $job_id in ~/ollama-logs/ or ~/job/*.out)"
   fi
 
   local node=$(echo "$conn_info" | grep '^NODE=' | cut -d= -f2)
@@ -369,11 +343,11 @@ hpcc-wait-for-job() {
 
   if [[ -n "$node" && -n "$port" ]]; then
     echo ""
-    echo "=== SSH Tunnel Command ==="
-    echo "ssh -L ${port}:${node}:${port} sweeden@login.hpcc.ttu.edu -N"
+    echo "=== Next step: create tunnel (from your Mac) ==="
+    echo "  hpcc-tunnel $port $node"
     echo ""
-    echo "=== Connect Locally ==="
-    echo "OLLAMA_HOST=127.0.0.1:${port} ollama list"
-    echo "OLLAMA_HOST=127.0.0.1:${port} ollama run <model>"
+    echo "Then use Ollama locally:"
+    echo "  OLLAMA_HOST=127.0.0.1:$port ollama list"
+    echo "  OLLAMA_HOST=127.0.0.1:$port ollama run <model>"
   fi
 }
