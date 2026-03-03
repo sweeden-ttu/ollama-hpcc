@@ -20,10 +20,10 @@
 #SBATCH --partition=matador
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=4096MB
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=2048MB
 #SBATCH --gpus-per-node=1
-#SBATCH --time=02:30:00
+#SBATCH --time=02:00:00
 #SBATCH --output=%x-%j.out
 #SBATCH --error=%x-%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -75,7 +75,8 @@ JOB_ID=${SLURM_JOB_ID}
 MODEL=${FULL_MODEL}
 NODE=$(hostname)
 PORT=${OLPORT}
-OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+OLLAMA_HOST=127.0.0.1:${OLPORT}
+OLLAMA_BASE_URL=http://localhost:${OLPORT}
 STARTED=$(date --iso-8601=seconds)
 EOF
 echo "Server info written to: ${INFO_FILE}"
@@ -151,9 +152,9 @@ fi
 # ---------------------------------------------------------------------------
 # Keep the job alive — run ollama in background until walltime
 # ---------------------------------------------------------------------------
-echo "Serving ${FULL_MODEL} — job will run until walltime (${HPCC_TIME})"
+echo "Serving ${FULL_MODEL} — job will run until walltime"
 echo "To connect from your Mac, create a tunnel (see README):"
 echo "  ssh sweeden@login.hpcc.ttu.edu -L ${OLPORT}:$(hostname):${OLPORT}"
 ~/ollama-latest/bin/ollama run ${FULL_MODEL} --verbose >~/ollama-hpcc/running_${MODEL}_${OLPORT}.log 2>~/ollama-hpcc/running_${MODEL}_${OLPORT}.err &
-sleep 2h30m
+sleep ${SLURM_TIME_LIMIT:-2h}
 wait ${OLLAMA_PID}
