@@ -38,7 +38,7 @@ qwen() {
 hpcc-tunnel() {
     local port="${1:?Usage: hpcc-tunnel PORT [NODE]}"
     local node="${2:-127.0.0.1}"
-    ssh -i ~/.ssh/id_rsa -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N sweeden@login.hpcc.ttu.edu -L "${port}:${node}:${port}" 
+    ssh -q -i ~/.ssh/id_rsa -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N sweeden@login.hpcc.ttu.edu -L "${port}:${node}:${port}" 
 }
 
 # Interactive model sessions - use salloc + srun to allocate GPU node and run ollama
@@ -120,31 +120,46 @@ hpcc-latest-log() {
 }
 
 hpcc-update-env() {
-  local job_info node port model
-  job_info=$(ssh -q sweeden@login.hpcc.ttu.edu 'latest=$(ls -t ~/ollama-logs/*.info | head -1) && cat "$latest"')
-  
+  local job_info node port model job_id
+  job_info=$(ssh -q sweeden@login.hpcc.ttu.edu 'latest=$(ls -t ~/ollama-logs/*.info 2>/dev/null | head -1); [ -n "$latest" ] && cat "$latest"')
+
+  if [[ -z "$job_info" ]]; then
+    # Fallback: running GPU job from ~/job (same as hpcc-tunnel)
+    local running_job_id
+    running_job_id=$(ssh -q sweeden@login.hpcc.ttu.edu "squeue -u \$USER -h -o '%i %t' 2>/dev/null | awk '\$2==\"R\" {print \$1; exit}'" | tr -d '\r')
+    if [[ -n "$running_job_id" ]]; then
+      job_info=$(ssh -q sweeden@login.hpcc.ttu.edu "for f in ~/job/*${running_job_id}*.info ~/job/*_${running_job_id}.info; do [ -f \"\$f\" ] && cat \"\$f\" 2>/dev/null && break; done" 2>/dev/null)
+      if [[ -z "$job_info" ]]; then
+        job_info=$(ssh -q sweeden@login.hpcc.ttu.edu "for f in ~/job/*${running_job_id}*.out ~/job/*${running_job_id}*.err; do [ -f \"\$f\" ] && grep -E '^NODE=|^PORT=|^MODEL=|^JOB_ID=' \"\$f\" 2>/dev/null && break; done" 2>/dev/null)
+      fi
+    fi
+  fi
+
   node=$(echo "$job_info" | grep '^NODE=' | cut -d= -f2)
   port=$(echo "$job_info" | grep '^PORT=' | cut -d= -f2)
   model=$(echo "$job_info" | grep '^MODEL=' | cut -d= -f2)
-  
+  job_id=$(echo "$job_info" | grep '^JOB_ID=' | cut -d= -f2)
+
   if [[ -z "$node" || -z "$port" ]]; then
-    echo "Failed to get job info"
+    echo "Failed to get job info (checked ~/ollama-logs and ~/job)"
     return 1
   fi
-  
+
   local env_file="${HOME}/projects/CS5374_Software_VV/project/src/agent/.env"
-  
+  mkdir -p "$(dirname "$env_file")"
+
   cat > "$env_file" <<EOF
 OLLAMA_HOST="127.0.0.1:${port}"
 OLLAMA_BASE_URL="http://127.0.0.1:${port}"
 OLLAMA_MODEL="${model}"
-OLLAMA_JOB_ID="$(echo "$job_info" | grep '^JOB_ID=' | cut -d= -f2)"
+OLLAMA_JOB_ID="${job_id}"
 EOF
-  
+
   echo "Updated $env_file:"
   echo "  OLLAMA_HOST=127.0.0.1:${port}"
   echo "  OLLAMA_BASE_URL=http://127.0.0.1:${port}"
   echo "  OLLAMA_MODEL=${model}"
+  echo "  OLLAMA_JOB_ID=${job_id}"
 }
 
 # -----------------------------------------------------------------------------
@@ -165,13 +180,28 @@ hpcc-kill() {
 
 # -----------------------------------------------------------------------------
 # Tunnels — auto-detect running Ollama job and create tunnel
-# Usage: hpcc-tunnel [MODEL]   e.g. hpcc-tunnel granite4:3b
-#        If no model passed, defaults to granite4
+# Usage: hpcc-tunnel [MODEL]   e.g. hpcc-tunnel granite4
+#        Or: hpcc-tunnel PORT NODE   e.g. hpcc-tunnel 56905 gpu-21-10
 # -----------------------------------------------------------------------------
 hpcc-tunnel() {
   local model=${1:-granite4}
   local info_file job_info node port
-  
+
+  # If first arg is a number, treat as PORT [NODE]
+  if [[ "$1" =~ ^[0-9]+$ ]]; then
+    port="$1"
+    node="${2:-127.0.0.1}"
+    if [[ -z "$port" ]]; then
+      echo "Usage: hpcc-tunnel PORT [NODE]  or  hpcc-tunnel [MODEL]"
+      return 1
+    fi
+    echo "=== Creating tunnel (PORT NODE mode) ==="
+    echo "Port: $port  Node: $node"
+    ssh -L "${port}:${node}:${port}" hpcc-login -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N -f
+    echo "Tunnel started! Test: curl http://localhost:${port}/api/tags"
+    return 0
+  fi
+
   # Check job status first
   local job_status
   job_status=$(ssh -q sweeden@login.hpcc.ttu.edu "squeue -u \$USER -o '%T' -h" 2>/dev/null | head -1)
@@ -184,25 +214,30 @@ hpcc-tunnel() {
     return 1
   fi
   
-  # Find latest info file matching the model
+  # Find latest info file: ~/ollama-logs (model name) or ~/job (running GPU job by id)
   info_file=$(ssh -q sweeden@login.hpcc.ttu.edu "ls -t ~/ollama-logs/${model}*.info 2>/dev/null | head -1")
-  
-  if [[ -z "$info_file" ]]; then
-    echo "No info file found for model: $model"
-    echo "Available models: granite4, deepseek-coder, codellama, qwen"
-    echo "Usage: hpcc-tunnel [MODEL]"
-    return 1
+  job_info=""
+
+  if [[ -n "$info_file" ]]; then
+    job_info=$(ssh -q sweeden@login.hpcc.ttu.edu "cat $info_file" 2>/dev/null)
+  else
+    # Fallback: get running job id and look in ~/job
+    local running_job_id
+    running_job_id=$(ssh -q sweeden@login.hpcc.ttu.edu "squeue -u \$USER -h -o '%i %t' 2>/dev/null | awk '\$2==\"R\" {print \$1; exit}'" | tr -d '\r')
+    if [[ -n "$running_job_id" ]]; then
+      job_info=$(ssh -q sweeden@login.hpcc.ttu.edu "for f in ~/job/*${running_job_id}*.info ~/job/*_${running_job_id}.info; do [ -f \"\$f\" ] && cat \"\$f\" 2>/dev/null && break; done" 2>/dev/null)
+      if [[ -z "$job_info" ]]; then
+        job_info=$(ssh -q sweeden@login.hpcc.ttu.edu "for f in ~/job/*${running_job_id}*.out ~/job/*${running_job_id}*.err; do [ -f \"\$f\" ] && grep -E '^NODE=|^PORT=' \"\$f\" 2>/dev/null && break; done" 2>/dev/null)
+      fi
+    fi
   fi
-  
-  # Get job info
-  job_info=$(ssh -q sweeden@login.hpcc.ttu.edu "cat $info_file" 2>/dev/null)
-  
+
   node=$(echo "$job_info" | grep '^NODE=' | cut -d= -f2)
   port=$(echo "$job_info" | grep '^PORT=' | cut -d= -f2)
-  
+
   if [[ -z "$node" || -z "$port" ]]; then
-    echo "Failed to parse NODE/PORT from $info_file"
-    echo "Raw output: $job_info"
+    echo "No NODE/PORT found for model: $model (checked ~/ollama-logs and ~/job for running job)"
+    echo "Usage: hpcc-tunnel [MODEL]  or  hpcc-tunnel PORT NODE"
     return 1
   fi
   
@@ -214,9 +249,12 @@ hpcc-tunnel() {
   echo "========================"
   
   ssh -L "${port}:${node}:${port}" hpcc-login -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N -f
-  
+
   echo "Tunnel started!"
-  echo "Test: curl http://localhost:${port}/api/tags"
+  echo "Test: curl http://127.0.0.1:${port}/api/tags"
+  echo ""
+  echo "If you get 'Connection reset by peer': on the compute node Ollama must listen on 0.0.0.0 (not 127.0.0.1)."
+  echo "In your ~/job script set: OLLAMA_HOST=0.0.0.0:${port}  before starting ollama serve"
 }
 
 # -----------------------------------------------------------------------------
