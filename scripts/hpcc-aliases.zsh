@@ -315,8 +315,8 @@ hpcc-wait-for-job() {
       echo "Job $running_job is already RUNNING; using it (no sbatch)."
       job_id="$running_job"
     else
-      echo "Submitting $model_name job via ~/job/slurm_submit_gpu.sh..."
-      job_id=$("${HPCC_SSH[@]}" "sbatch ~/job/slurm_submit_gpu.sh $model_name" | awk '{print $NF}')
+      echo "Submitting $model_name job via ~/job/slurm_submit_cpu.sh..."
+      job_id=$("${HPCC_SSH[@]}" "sbatch ~/job/slurm_submit_cpu.sh $model_name" | awk '{print $NF}')
       if [[ -z "$job_id" || ! "$job_id" =~ ^[0-9]+$ ]]; then
         echo "Failed to get job ID from sbatch output"
         return 1

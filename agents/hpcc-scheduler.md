@@ -17,15 +17,16 @@ You must know the memory requirements for these Ollama models:
 
 | Partition | GPUs | Nodes | State |
 |-----------|------|-------|-------|
-| toreador | A100 (3/node) | 11 | Full (all allocated) |
-| matador | V100 (2/node) | 20 | MIXED/ALLOCATED |
-| nocona | CPU only | 240 | Mostly allocated |
-| quanah | CPU only | 464 | Mostly allocated |
+| toreador | A100 (3/node) | 11 | ?? |
+| matador | V100 (2/node) | 20 | ?? |
+| nocona | CPU only | 240 | ?? |
+| quanah | CPU only | 464 | ?? |
 | gpu-build | None configured | 1 | IDLE |
 
 ## Essential SLURM Commands
 
 ### Check partition status
+
 ```bash
 sinfo -s                          # Summary of all partitions
 sinfo -p <partition>              # Specific partition
@@ -34,6 +35,7 @@ sinfo -p matador                   # Example: matador V100 GPUs
 ```
 
 ### Check node details
+
 ```bash
 sinfo -o "%P %a %T %n %c %m %G"    # Full node info
 sinfo -Nh -o "%P %T" | sort | uniq -c | sort -rn  # Quick summary
@@ -41,6 +43,7 @@ sinfo -p toreador -o "%n %C %c %m %G"  # GPUs per node
 ```
 
 ### Check job queue
+
 ```bash
 squeue                             # All jobs
 squeue -u $USER                    # Your jobs
@@ -49,12 +52,14 @@ squeue -o "%i %P %j %u %t %T %M %n"  # Custom format
 ```
 
 ### Check specific node GPU state
+
 ```bash
 scontrol show node <nodename>     # Detailed node info
 scontrol show node gpu-21-14      # Example
 ```
 
 ### Submit jobs
+
 ```bash
 sbatch scripts/run_granite_ollama.sh
 sbatch -p toreador scripts/run_granite_ollama.sh  # Specify partition
