@@ -85,6 +85,22 @@ hpcc-git-status() {
 }
 
 
+
+# =============================================================================
+# hpcc-aliases.zsh — HPCC / RedRaider client aliases and functions
+# Source from ~/.zshrc:  [ -f ~/ollama-hpcc/scripts/hpcc-aliases.zsh ] && source ~/ollama-hpcc/scripts/hpcc-aliases.zsh
+# Specs: README.md, PIPELINE.md, OpenMPI.md, OLLAMA.md
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Connection
+# -----------------------------------------------------------------------------
+alias hpcc='ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu'
+alias hpcc-login='ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu'
+
+# -----------------------------------------------------------------------------
+# Environment introspection (node, ollama_host, ollama_base_url, model, port)
+# -----------------------------------------------------------------------------
 hpcc-info() {
   ssh -q sweeden@login.hpcc.ttu.edu "squeue -u \$USER"
   echo ""
@@ -229,17 +245,29 @@ qwen() {
 # -----------------------------------------------------------------------------
 # Wait for job to start and show connection info
 # Usage: hpcc-wait-for-job [job-id]
-#   OR: hpcc-wait-for-job [model-name] (submits job first)
+#   OR: hpcc-wait-for-job [model-name] (submits job first; use granite|deepseek|codellama|qwen)
 # -----------------------------------------------------------------------------
 hpcc-wait-for-job() {
   local HPCC_SSH="ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu"
   local job_id model_name
   
+  # Use array so zsh invokes ssh correctly (zsh doesn't word-split unquoted vars like bash)
+  local -a HPCC_SSH=(ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu)
+  local job_id model_name script_name
+
+  # Map friendly model name to script filename (qwen -> qwen-coder)
+  case "$1" in
+    granite|deepseek|codellama) script_name="$1" ;;
+    qwen) script_name="qwen-coder" ;;
+    *) script_name="$1" ;;
+  esac
+
   if [[ -z "$1" ]]; then
     echo "Usage: hpcc-wait-for-job <job-id> OR <model-name>"
+    echo "  model-name: granite, deepseek, codellama, qwen"
     return 1
   fi
-  
+
   if [[ "$1" =~ ^[0-9]+$ ]]; then
     job_id="$1"
     model_name="${2:-granite}"
@@ -247,15 +275,21 @@ hpcc-wait-for-job() {
     model_name="$1"
     echo "Submitting $model_name job..."
     job_id=$($HPCC_SSH "sbatch ~/job/slurm_submit.sh $model_name" | grep -oP '\d+')
+    # Portable job ID extraction (macOS grep has no -P; sbatch prints "Submitted batch job 12345")
+    job_id=$("${HPCC_SSH[@]}" "cd ~/ollama-hpcc && sbatch scripts/run_${script_name}_ollama.sh" | awk '{print $NF}')
+    if [[ -z "$job_id" || ! "$job_id" =~ ^[0-9]+$ ]]; then
+      echo "Failed to get job ID from sbatch output"
+      return 1
+    fi
     echo "Submitted job: $job_id"
   fi
-  
+
   echo "Waiting for job $job_id to start..."
-  
+
   while true; do
     local job_state
-    job_state=$($HPCC_SSH "squeue -j $job_id -o %t -h" 2>/dev/null || echo "UNKNOWN")
-    
+    job_state=$("${HPCC_SSH[@]}" "squeue -j $job_id -o %t -h" 2>/dev/null || echo "UNKNOWN")
+
     if [[ "$job_state" == "R" ]]; then
       echo "Job is RUNNING!"
       break
@@ -264,33 +298,40 @@ hpcc-wait-for-job() {
     else
       echo "Job status: $job_state"
     fi
-    
+
     sleep 60
   done
-  
+
+  # Give the job script time to write the .info file (OLLAMA_LOG_DIR on compute node)
   sleep 5
-  
+
   echo ""
   echo "=== Connection Info ==="
   local conn_info=$($HPCC_SSH "grep -E 'NODE=|PORT=|TUNNEL_FROM_MAC=' ~/*${job_id}*.out ~/ollama-hpcc/*${job_id}*.out 2>/dev/null" || echo "")
   
+  # Info files live in ~/ollama-logs as MODEL_JOBID.info (e.g. granite4_12345.info)
+  local conn_info=$("${HPCC_SSH[@]}" "grep -E '^NODE=|^PORT=' ~/ollama-logs/*${job_id}*.info 2>/dev/null" || echo "")
+
+  if [[ -z "$conn_info" ]]; then
+    conn_info=$("${HPCC_SSH[@]}" "grep -E '^NODE=|^PORT=' ~/ollama-logs/*_${job_id}.info 2>/dev/null" || echo "")
+  fi
+
   if [[ -n "$conn_info" ]]; then
     echo "$conn_info"
   else
-    conn_info=$($HPCC_SSH "grep -E 'NODE=|PORT=' ~/ollama-hpcc/logs/*${job_id}*.info 2>/dev/null" || echo "")
-    echo "$conn_info"
+    echo "(No .info file found for job $job_id in ~/ollama-logs yet; try again in a few seconds)"
   fi
-  
+
   local node=$(echo "$conn_info" | grep '^NODE=' | cut -d= -f2)
   local port=$(echo "$conn_info" | grep '^PORT=' | cut -d= -f2)
-  
+
   if [[ -n "$node" && -n "$port" ]]; then
     echo ""
     echo "=== SSH Tunnel Command ==="
-    echo "ssh -L ${port}:${node}:${port} sweeden@login.hpcc.ttu.edu"
+    echo "ssh -L ${port}:${node}:${port} sweeden@login.hpcc.ttu.edu -N"
     echo ""
     echo "=== Connect Locally ==="
     echo "OLLAMA_HOST=127.0.0.1:${port} ollama list"
-    echo "OLLAMA_HOST=127.0.0.1:${port} ollama run ${model_name}"
+    echo "OLLAMA_HOST=127.0.0.1:${port} ollama run <model>"
   fi
 }

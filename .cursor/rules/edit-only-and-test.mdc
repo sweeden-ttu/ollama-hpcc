@@ -1,0 +1,12 @@
+---
+description: Edit existing files only; after changes run the command or tests to verify
+alwaysApply: true
+---
+
+# Edit-only and verify
+
+- **Do not create new files.** Only modify existing files in the project. Do not add new scripts, config files, or docs unless the user explicitly asks to create something.
+- **After making changes, always verify.** Run the affected command(s) or the project’s test suite so the change is validated. For example:
+  - After editing a script: run that script (or the command that uses it).
+  - After editing code: run the relevant tests (e.g. `pytest`, `npm test`, or the project’s test command).
+- If a command or test fails, fix the cause before considering the task done.
