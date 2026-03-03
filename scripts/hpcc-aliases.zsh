@@ -38,7 +38,7 @@ qwen() {
 hpcc-tunnel() {
     local port="${1:?Usage: hpcc-tunnel PORT [NODE]}"
     local node="${2:-127.0.0.1}"
-    ssh -L "${port}:${node}:${port}" -i ~/.ssh/id_rsa -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N sweeden@login.hpcc.ttu.edu
+    ssh -i ~/.ssh/id_rsa -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N sweeden@login.hpcc.ttu.edu -L "${port}:${node}:${port}" 
 }
 
 # Interactive model sessions - use salloc + srun to allocate GPU node and run ollama
