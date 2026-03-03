@@ -1,0 +1,10 @@
+---
+description: Every change must be tested and work, or undo the change
+alwaysApply: true
+---
+
+# Test or undo
+
+- **After any code or config change:** run the affected command, script, or test so the change is validated.
+- **If the run or test fails:** fix the cause so it passes, or **revert the change** (undo the edit) so the codebase is left in a working state.
+- Do not leave the project in a broken state. Either the change works and is verified, or it is undone.

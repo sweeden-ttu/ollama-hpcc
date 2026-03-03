@@ -86,11 +86,14 @@ So: the port forward is set up on the Mac with that `ssh -L` command; the tunnel
 
 | Step | Where | Command / action |
 |------|--------|-------------------|
-| Start server | HPCC | `sbatch job/slurm_submit.sh [granite\|deepseek\|codellama\|qwen]` |
-| Get node & port | HPCC | `grep -E 'NODE=\|PORT=\|TUNNEL_FROM_MAC' <jobid>_*GPU.out` |
-| Create tunnel | **Mac** | `ssh -L PORT:NODE:PORT $USER@login.hpcc.ttu.edu` (keep this session open) |
-| Use Ollama | **Mac** | `OLLAMA_HOST=127.0.0.1:PORT ollama run <model>` |
+| 1. Start server | HPCC | `granite` or `deepseek` or `codellama` or `qwen` |
+| 2. Get node & port | **Mac** | `hpcc-env` (reads ~/ollama-logs/*.info, prints NODE/PORT/MODEL) |
+| 3. Create tunnel | **Mac** | `hpcc-tunnel [MODEL]` e.g. `hpcc-tunnel granite4` |
+| 4. Use Ollama | **Mac** | `hpcc-update-env` (sets .env and runs `ollama run <model>`) |
 
+All aliases are defined in `scripts/hpcc-aliases.zsh`.
+
+### Test plan (job already running, start at step 2)
 ---
 
 ## Batch job vs interactive tunnel script

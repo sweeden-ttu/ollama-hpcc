@@ -116,7 +116,14 @@ hpcc-latest-log() {
     echo "Run 'hpcc-info' to check queue status"
     return 1
   fi
-  ssh -q sweeden@login.hpcc.ttu.edu 'latest=$(ls -t ~/ollama-logs/*.info | head -1) && tail -20 "$latest"'
+  local latest_content
+  latest_content=$(ssh -q sweeden@login.hpcc.ttu.edu 'latest=$(ls -t ~/ollama-logs/*.info 2>/dev/null | head -1); [ -n "$latest" ] && cat "$latest"')
+  if [[ -n "$latest_content" ]]; then
+    echo "$latest_content" | tail -20
+  else
+    echo "No job info found in ~/ollama-logs/"
+    return 1
+  fi
 }
 
 hpcc-update-env() {
@@ -124,24 +131,21 @@ hpcc-update-env() {
   job_info=$(ssh -q sweeden@login.hpcc.ttu.edu 'latest=$(ls -t ~/ollama-logs/*.info 2>/dev/null | head -1); [ -n "$latest" ] && cat "$latest"')
 
   if [[ -z "$job_info" ]]; then
-    # Fallback: running GPU job from ~/job (same as hpcc-tunnel)
-    local running_job_id
-    running_job_id=$(ssh -q sweeden@login.hpcc.ttu.edu "squeue -u \$USER -h -o '%i %t' 2>/dev/null | awk '\$2==\"R\" {print \$1; exit}'" | tr -d '\r')
-    if [[ -n "$running_job_id" ]]; then
-      job_info=$(ssh -q sweeden@login.hpcc.ttu.edu "for f in ~/job/*${running_job_id}*.info ~/job/*_${running_job_id}.info; do [ -f \"\$f\" ] && cat \"\$f\" 2>/dev/null && break; done" 2>/dev/null)
-      if [[ -z "$job_info" ]]; then
-        job_info=$(ssh -q sweeden@login.hpcc.ttu.edu "for f in ~/job/*${running_job_id}*.out ~/job/*${running_job_id}*.err; do [ -f \"\$f\" ] && grep -E '^NODE=|^PORT=|^MODEL=|^JOB_ID=' \"\$f\" 2>/dev/null && break; done" 2>/dev/null)
-      fi
-    fi
+    echo "No job info found in ~/ollama-logs/"
+    return 1
   fi
 
   node=$(echo "$job_info" | grep '^NODE=' | cut -d= -f2)
   port=$(echo "$job_info" | grep '^PORT=' | cut -d= -f2)
   model=$(echo "$job_info" | grep '^MODEL=' | cut -d= -f2)
   job_id=$(echo "$job_info" | grep '^JOB_ID=' | cut -d= -f2)
+  # Fallback: infer model from "Starting model:tag" line in job log
+  if [[ -z "$model" ]]; then
+    model=$(echo "$job_info" | grep -oE 'Starting [a-zA-Z0-9._-]+:[a-zA-Z0-9._-]+' | head -1 | sed 's/^Starting //')
+  fi
 
   if [[ -z "$node" || -z "$port" ]]; then
-    echo "Failed to get job info (checked ~/ollama-logs and ~/job)"
+    echo "Failed to get NODE/PORT from ~/ollama-logs/ (check latest .info file)"
     return 1
   fi
 
@@ -160,6 +164,17 @@ EOF
   echo "  OLLAMA_BASE_URL=http://127.0.0.1:${port}"
   echo "  OLLAMA_MODEL=${model}"
   echo "  OLLAMA_JOB_ID=${job_id}"
+
+  # Run ollama with the tunnel (ensure tunnel is open: hpcc-tunnel)
+  if [[ -n "$model" ]]; then
+    echo ""
+    echo "Running: OLLAMA_HOST=127.0.0.1:${port} ollama run ${model}"
+    OLLAMA_HOST="127.0.0.1:${port}" ollama run "${model}"
+  else
+    echo ""
+    echo "OLLAMA_MODEL not in job info. Run manually:"
+    echo "  OLLAMA_HOST=127.0.0.1:${port} ollama run <model>"
+  fi
 }
 
 # -----------------------------------------------------------------------------
@@ -214,29 +229,21 @@ hpcc-tunnel() {
     return 1
   fi
   
-  # Find latest info file: ~/ollama-logs (model name) or ~/job (running GPU job by id)
+  # Use info from ~/ollama-logs/ on the host (model-specific or latest)
   info_file=$(ssh -q sweeden@login.hpcc.ttu.edu "ls -t ~/ollama-logs/${model}*.info 2>/dev/null | head -1")
-  job_info=""
-
+  if [[ -z "$info_file" ]]; then
+    info_file=$(ssh -q sweeden@login.hpcc.ttu.edu "ls -t ~/ollama-logs/*.info 2>/dev/null | head -1")
+  fi
+  local job_info=""
   if [[ -n "$info_file" ]]; then
     job_info=$(ssh -q sweeden@login.hpcc.ttu.edu "cat $info_file" 2>/dev/null)
-  else
-    # Fallback: get running job id and look in ~/job
-    local running_job_id
-    running_job_id=$(ssh -q sweeden@login.hpcc.ttu.edu "squeue -u \$USER -h -o '%i %t' 2>/dev/null | awk '\$2==\"R\" {print \$1; exit}'" | tr -d '\r')
-    if [[ -n "$running_job_id" ]]; then
-      job_info=$(ssh -q sweeden@login.hpcc.ttu.edu "for f in ~/job/*${running_job_id}*.info ~/job/*_${running_job_id}.info; do [ -f \"\$f\" ] && cat \"\$f\" 2>/dev/null && break; done" 2>/dev/null)
-      if [[ -z "$job_info" ]]; then
-        job_info=$(ssh -q sweeden@login.hpcc.ttu.edu "for f in ~/job/*${running_job_id}*.out ~/job/*${running_job_id}*.err; do [ -f \"\$f\" ] && grep -E '^NODE=|^PORT=' \"\$f\" 2>/dev/null && break; done" 2>/dev/null)
-      fi
-    fi
   fi
 
   node=$(echo "$job_info" | grep '^NODE=' | cut -d= -f2)
   port=$(echo "$job_info" | grep '^PORT=' | cut -d= -f2)
 
   if [[ -z "$node" || -z "$port" ]]; then
-    echo "No NODE/PORT found for model: $model (checked ~/ollama-logs and ~/job for running job)"
+    echo "No NODE/PORT found in ~/ollama-logs/ for model: $model"
     echo "Usage: hpcc-tunnel [MODEL]  or  hpcc-tunnel PORT NODE"
     return 1
   fi
@@ -341,23 +348,20 @@ hpcc-wait-for-job() {
 
   echo ""
   echo "=== Connection Info ==="
-  # Info files: ~/ollama-logs (MODEL_JOBID.info) or ~/job for GPU jobs
+  # Connection info from ~/ollama-logs/ on the host
   local conn_info=$("${HPCC_SSH[@]}" "grep -E '^NODE=|^PORT=' ~/ollama-logs/*${job_id}*.info 2>/dev/null" || echo "")
 
   if [[ -z "$conn_info" ]]; then
     conn_info=$("${HPCC_SSH[@]}" "grep -E '^NODE=|^PORT=' ~/ollama-logs/*_${job_id}.info 2>/dev/null" || echo "")
   fi
   if [[ -z "$conn_info" ]]; then
-    conn_info=$("${HPCC_SSH[@]}" "for f in ~/job/*${job_id}*.info ~/job/*_${job_id}.info; do [ -f \"\$f\" ] && grep -E '^NODE=|^PORT=' \"\$f\" 2>/dev/null && break; done" || echo "")
-  fi
-  if [[ -z "$conn_info" ]]; then
-    conn_info=$("${HPCC_SSH[@]}" "for f in ~/job/*${job_id}*.out ~/job/*${job_id}*.err; do [ -f \"\$f\" ] && grep -E '^NODE=|^PORT=' \"\$f\" 2>/dev/null && break; done" || echo "")
+    conn_info=$("${HPCC_SSH[@]}" "latest=\$(ls -t ~/ollama-logs/*.info 2>/dev/null | head -1); [ -n \"\$latest\" ] && grep -E '^NODE=|^PORT=' \"\$latest\" 2>/dev/null" || echo "")
   fi
 
   if [[ -n "$conn_info" ]]; then
     echo "$conn_info"
   else
-    echo "(No NODE/PORT found for job $job_id in ~/ollama-logs or ~/job; check hpcc-jobs and job output)"
+    echo "(No NODE/PORT found for job $job_id in ~/ollama-logs/; check hpcc-jobs and that job writes .info there)"
   fi
 
   local node=$(echo "$conn_info" | grep '^NODE=' | cut -d= -f2)
