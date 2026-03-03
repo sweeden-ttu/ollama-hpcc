@@ -8,16 +8,19 @@
 # Or via MPI:   bash mpi_run.sh run_codellama_ollama.sh
 # =============================================================================
 
-#SBATCH --job-name=ollama-codellama
-#SBATCH --partition=matador
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
+# SLURM directives per TTU HPCC Job Submission Guide (Submission Script Layout)
+#SBATCH -J ollama-codellama
+#SBATCH -o %x.o%j
+#SBATCH -e %x.e%j
+#SBATCH -p matador
+#SBATCH -N 1
+#SBATCH --ntasks-per-node=1
 #SBATCH --mem-per-cpu=4096MB
+#SBATCH -t 02:30:00
 #SBATCH --gpus-per-node=1
-#SBATCH --time=02:30:00
-#SBATCH --output=%x-%j.out
-#SBATCH --error=%x-%j.err
+# Optional: --cpus-per-task (guide "Other Command Options")
+#SBATCH --cpus-per-task=2
+# Optional: email notifications (guide "Other Command Options")
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=sweeden@ttu.edu
 
@@ -25,8 +28,9 @@
 # Environment
 # ---------------------------------------------------------------------------
 # Clean up previous output/error files for this job name
-find ~/ollama-hpcc -maxdepth 1 -name "${SLURM_JOB_NAME}-*.out" ! -name "${SLURM_JOB_NAME}-${SLURM_JOB_ID}.out" -delete 2>/dev/null || true
-find ~/ollama-hpcc -maxdepth 1 -name "${SLURM_JOB_NAME}-*.err" ! -name "${SLURM_JOB_NAME}-${SLURM_JOB_ID}.err" -delete 2>/dev/null || true
+# Clean old job output/error files (guide format: %x.o%j → <job_name>.o<job_ID>, no .out/.err suffix)
+find ~/ollama-hpcc -maxdepth 1 -name "${SLURM_JOB_NAME}.o*" ! -name "${SLURM_JOB_NAME}.o${SLURM_JOB_ID}" -delete 2>/dev/null || true
+find ~/ollama-hpcc -maxdepth 1 -name "${SLURM_JOB_NAME}.e*" ! -name "${SLURM_JOB_NAME}.e${SLURM_JOB_ID}" -delete 2>/dev/null || true
 
 SCRIPT_DIR="/home/sweeden/ollama-hpcc/scripts"
 source "${SCRIPT_DIR}/model_versions.env"

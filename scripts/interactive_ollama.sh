@@ -53,12 +53,15 @@ export OLLAMA_HOST=127.0.0.1:$AVAILABLE_PORT
 export OLLAMA_BASE_URL="http://localhost:$AVAILABLE_PORT"
 
 module load gcc
-module load cuda/12.9.0
+# module load cuda/12.9.0
 
 echo "Starting Ollama server..."
 /home/sweeden/ollama-latest/bin/ollama serve > /home/sweeden/ollama-hpcc/running_${MODEL}_${AVAILABLE_PORT}.log 2> /home/sweeden/ollama-hpcc/running_${MODEL}_${AVAILABLE_PORT}.err &
 
-sleep 5
+sleep 10
+OLLAMA_HOST=127.0.0.1:${AVAILABLE_PORT} ollama list"
+OLLAMA_BASE_URL=http://127.0.0.1:${AVAILABLE_PORT}; ollama run $MODEL_NAME:$MODEL_VER
+
 
 echo ""
 echo "=============================================="
@@ -68,7 +71,7 @@ echo "Port: $AVAILABLE_PORT"
 echo "Model: $MODEL_NAME:$MODEL_VER"
 echo ""
 echo "SSH tunnel command (run in another terminal on your Mac):"
-echo "  ssh -L ${AVAILABLE_PORT}:127.0.0.1:${AVAILABLE_PORT} -i ~/.ssh/id_rsa sweeden@login.hpcc.ttu.edu -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N"
+echo "ssh -i ~/.ssh/id_rsa sweeden@login.hpcc.ttu.edu -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -L ${AVAILABLE_PORT}:127.0.0.1:${AVAILABLE_PORT} "
 echo ""
 echo "The SSH tunnel is running in the background."
 echo "Local port ${AVAILABLE_PORT} on your Mac is forwarded to 127.0.0.1:${AVAILABLE_PORT} on login.hpcc.ttu.edu."
