@@ -284,6 +284,7 @@ hpcc-wait-for-job() {
   while true; do
     local job_state
     job_state=$("${HPCC_SSH[@]}" "squeue -j $job_id -o %t -h" 2>/dev/null || echo "UNKNOWN")
+    job_state=$(echo "$job_state" | tr -d '\r\n' | xargs)
 
     if [[ "$job_state" == "R" ]]; then
       echo "Job is RUNNING!"
