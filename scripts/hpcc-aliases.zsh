@@ -163,3 +163,72 @@ alias granite-interactive="ssh -q -t sweeden@login.hpcc.ttu.edu '/etc/slurm/scri
 alias deepseek-interactive="ssh -q -t sweeden@login.hpcc.ttu.edu '/etc/slurm/scripts/interactive -c 8 -g 1 -p matador'"
 alias codellama-interactive="ssh -q -t sweeden@login.hpcc.ttu.edu '/etc/slurm/scripts/interactive -c 8 -g 1 -p matador'"
 alias qwen-interactive="ssh -q -t sweeden@login.hpcc.ttu.edu '/etc/slurm/scripts/interactive -c 8 -g 1 -p matador'"
+
+# -----------------------------------------------------------------------------
+# Wait for job to start and show connection info
+# Usage: hpcc-wait-for-job [job-id]
+#   OR: hpcc-wait-for-job [model-name] (submits job first)
+# -----------------------------------------------------------------------------
+hpcc-wait-for-job() {
+  local HPCC_SSH="ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu"
+  local job_id model_name
+  
+  if [[ -z "$1" ]]; then
+    echo "Usage: hpcc-wait-for-job <job-id> OR <model-name>"
+    return 1
+  fi
+  
+  if [[ "$1" =~ ^[0-9]+$ ]]; then
+    job_id="$1"
+    model_name="${2:-granite}"
+  else
+    model_name="$1"
+    echo "Submitting $model_name job..."
+    job_id=$($HPCC_SSH "cd ~/ollama-hpcc && sbatch scripts/run_${model_name}_ollama.sh" | grep -oP '\d+')
+    echo "Submitted job: $job_id"
+  fi
+  
+  echo "Waiting for job $job_id to start..."
+  
+  while true; do
+    local job_state
+    job_state=$($HPCC_SSH "squeue -j $job_id -o %t -h" 2>/dev/null || echo "UNKNOWN")
+    
+    if [[ "$job_state" == "R" ]]; then
+      echo "Job is RUNNING!"
+      break
+    elif [[ "$job_state" == "PD" ]]; then
+      echo "Job is PENDING..."
+    else
+      echo "Job status: $job_state"
+    fi
+    
+    sleep 60
+  done
+  
+  sleep 5
+  
+  echo ""
+  echo "=== Connection Info ==="
+  local conn_info=$($HPCC_SSH "grep -E 'NODE=|PORT=|TUNNEL_FROM_MAC=' ~/ollama-hpcc/*${job_id}*.out 2>/dev/null" || echo "")
+  
+  if [[ -n "$conn_info" ]]; then
+    echo "$conn_info"
+  else
+    conn_info=$($HPCC_SSH "grep -E 'NODE=|PORT=' ~/ollama-hpcc/logs/*${job_id}*.info 2>/dev/null" || echo "")
+    echo "$conn_info"
+  fi
+  
+  local node=$(echo "$conn_info" | grep '^NODE=' | cut -d= -f2)
+  local port=$(echo "$conn_info" | grep '^PORT=' | cut -d= -f2)
+  
+  if [[ -n "$node" && -n "$port" ]]; then
+    echo ""
+    echo "=== SSH Tunnel Command ==="
+    echo "ssh -L ${port}:${node}:${port} sweeden@login.hpcc.ttu.edu"
+    echo ""
+    echo "=== Connect Locally ==="
+    echo "OLLAMA_HOST=127.0.0.1:${port} ollama list"
+    echo "OLLAMA_HOST=127.0.0.1:${port} ollama run ${model_name}"
+  fi
+}

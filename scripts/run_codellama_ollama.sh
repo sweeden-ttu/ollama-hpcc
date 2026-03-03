@@ -95,6 +95,8 @@ if ! "${OLLAMA_BIN}" list &>/dev/null; then
     exit 1
 fi
 
+echo "TUNNEL_FROM_MAC=ssh -L ${OLPORT}:$(hostname):${OLPORT} sweeden@login.hpcc.ttu.edu"
+
 # ---------------------------------------------------------------------------
 # Pull model if not already cached
 # ---------------------------------------------------------------------------

@@ -1,6 +1,0 @@
-{
-  "name": "ollama-hpcc-local",
-  "version": "0.1.0",
-  "description": "Local Claude plugin scaffold for ollama-hpcc.",
-  "license": "Apache-2.0"
-}

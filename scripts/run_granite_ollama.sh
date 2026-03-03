@@ -122,6 +122,7 @@ if ! "${OLLAMA_BIN}" list &>/dev/null; then
     exit 1
 fi
 echo "OLLAMA server ready at ${OLLAMA_BASE_URL}"
+echo "TUNNEL_FROM_MAC=ssh -L ${OLPORT}:$(hostname):${OLPORT} sweeden@login.hpcc.ttu.edu"
 echo "To create a tunnel from your Mac use this format:"
 echo "  1. Login to interactive nocona on HPCC: /etc/slurm/scripts/interactive -p nocona"
 echo "  2. Note the node name and port from the job/session (node=$(hostname), port=${OLPORT})"
