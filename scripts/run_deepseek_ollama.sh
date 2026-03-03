@@ -99,6 +99,8 @@ if ! "${OLLAMA_BIN}" list &>/dev/null; then
     exit 1
 fi
 
+echo "TUNNEL_FROM_MAC=ssh -L ${OLPORT}:$(hostname):${OLPORT} sweeden@login.hpcc.ttu.edu"
+
 # ---------------------------------------------------------------------------
 # Pull model if not already cached
 # ---------------------------------------------------------------------------
@@ -110,6 +112,10 @@ echo "Pulling model ${FULL_MODEL} (skipped if already cached)..."
 # ---------------------------------------------------------------------------
 echo "Launching ${FULL_MODEL} in serve mode. Connect at ${OLLAMA_BASE_URL}"
 ~/ollama-latest/bin/ollama run ${FULL_MODEL} --verbose >~/ollama-hpcc/running_${MODEL}_${OLPORT}.log 2>~/ollama-hpcc/running_${MODEL}_${OLPORT}.err &
+<<<<<<< HEAD
 # Sleep until walltime (02:30:00 = 9000s); standard sleep only accepts seconds
 sleep 9000
+=======
+sleep 2h30m
+>>>>>>> 768bef3f2b3a61570d0a1839270e88bf35e26554
 wait ${OLLAMA_PID}

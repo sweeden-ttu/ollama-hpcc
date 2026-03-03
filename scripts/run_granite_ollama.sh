@@ -16,6 +16,7 @@
 #   - modules are loaded (gcc + cuda) before execution, matching the guide
 # =============================================================================
 
+<<<<<<< HEAD
 # SLURM directives per TTU HPCC Job Submission Guide (Submission Script Layout)
 #SBATCH -J ollama-granite
 #SBATCH -o %x.o%j
@@ -29,6 +30,18 @@
 # Optional: --cpus-per-task (guide "Other Command Options")
 #SBATCH --cpus-per-task=2
 # Optional: email notifications (guide "Other Command Options")
+=======
+#SBATCH --job-name=ollama-granite
+#SBATCH --partition=matador
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=2048MB
+#SBATCH --gpus-per-node=1
+#SBATCH --time=02:00:00
+#SBATCH --output=%x-%j.out
+#SBATCH --error=%x-%j.err
+>>>>>>> 768bef3f2b3a61570d0a1839270e88bf35e26554
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=sweeden@ttu.edu
 
@@ -79,7 +92,8 @@ JOB_ID=${SLURM_JOB_ID}
 MODEL=${FULL_MODEL}
 NODE=$(hostname)
 PORT=${OLPORT}
-OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+OLLAMA_HOST=127.0.0.1:${OLPORT}
+OLLAMA_BASE_URL=http://localhost:${OLPORT}
 STARTED=$(date --iso-8601=seconds)
 EOF
 echo "Server info written to: ${INFO_FILE}"
@@ -125,8 +139,18 @@ if ! "${OLLAMA_BIN}" list &>/dev/null; then
     exit 1
 fi
 echo "OLLAMA server ready at ${OLLAMA_BASE_URL}"
+<<<<<<< HEAD
 echo "SSH tunnel command (from your Mac; Ollama runs on compute node $(hostname)):"
 echo "  ssh -L ${OLPORT}:$(hostname):${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu -N"
+=======
+echo "TUNNEL_FROM_MAC=ssh -L ${OLPORT}:$(hostname):${OLPORT} sweeden@login.hpcc.ttu.edu"
+echo "To create a tunnel from your Mac use this format:"
+echo "  1. Login to interactive nocona on HPCC: /etc/slurm/scripts/interactive -p nocona"
+echo "  2. Note the node name and port from the job/session (node=$(hostname), port=${OLPORT})"
+echo "  3. From your Mac: ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp"
+echo "     Substitute NODE and pppp with the node name and port from step 2."
+echo "  Example for this job: ssh sweeden@login.hpcc.ttu.edu -L ${OLPORT}:$(hostname):${OLPORT}"
+>>>>>>> 768bef3f2b3a61570d0a1839270e88bf35e26554
 echo "============================================================"
 
 # ---------------------------------------------------------------------------
@@ -137,6 +161,7 @@ echo "Pulling model ${FULL_MODEL} (no-op if already cached)..."
 
 # ---------------------------------------------------------------------------
 # Run the model immediately (first inference to load and verify)
+<<<<<<< HEAD
 # ---------------------------------------------------------------------------
 echo "Running model ${FULL_MODEL} (first inference)..."
 if curl -s -S --max-time 120 -X POST "http://127.0.0.1:${OLPORT}/api/generate" \
@@ -157,4 +182,25 @@ echo "  ssh -L ${OLPORT}:$(hostname):${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hp
 ~/ollama-latest/bin/ollama run ${FULL_MODEL} --verbose >~/ollama-hpcc/running_${MODEL}_${OLPORT}.log 2>~/ollama-hpcc/running_${MODEL}_${OLPORT}.err &
 # Sleep until walltime (02:30:00 = 9000s); standard sleep only accepts seconds
 sleep 9000
+=======
+# ---------------------------------------------------------------------------
+echo "Running model ${FULL_MODEL} (first inference)..."
+if curl -s -S --max-time 120 -X POST "http://127.0.0.1:${OLPORT}/api/generate" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"'"${FULL_MODEL}"'","prompt":"Say OK in one word.","stream":false}' \
+  -o /dev/null -w "HTTP %{http_code}\n"; then
+  echo "Model ${FULL_MODEL} loaded and ready."
+else
+  echo "WARNING: First inference failed or timed out; server may still be usable."
+fi
+
+# ---------------------------------------------------------------------------
+# Keep the job alive — run ollama in background until walltime
+# ---------------------------------------------------------------------------
+echo "Serving ${FULL_MODEL} — job will run until walltime"
+echo "To connect from your Mac, create a tunnel (see README):"
+echo "  ssh sweeden@login.hpcc.ttu.edu -L ${OLPORT}:$(hostname):${OLPORT}"
+~/ollama-latest/bin/ollama run ${FULL_MODEL} --verbose >~/ollama-hpcc/running_${MODEL}_${OLPORT}.log 2>~/ollama-hpcc/running_${MODEL}_${OLPORT}.err &
+sleep ${SLURM_TIME_LIMIT:-2h}
+>>>>>>> 768bef3f2b3a61570d0a1839270e88bf35e26554
 wait ${OLLAMA_PID}

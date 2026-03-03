@@ -53,21 +53,30 @@ export OLLAMA_HOST=127.0.0.1:$AVAILABLE_PORT
 export OLLAMA_BASE_URL="http://localhost:$AVAILABLE_PORT"
 
 module load gcc
+<<<<<<< HEAD
 # module load cuda/12.9.0
+=======
+module load cuda/12.9.0
+>>>>>>> 768bef3f2b3a61570d0a1839270e88bf35e26554
 
 echo "Starting Ollama server..."
 /home/sweeden/ollama-latest/bin/ollama serve > /home/sweeden/ollama-hpcc/running_${MODEL}_${AVAILABLE_PORT}.log 2> /home/sweeden/ollama-hpcc/running_${MODEL}_${AVAILABLE_PORT}.err &
 
+<<<<<<< HEAD
 sleep 10
 OLLAMA_HOST=127.0.0.1:${AVAILABLE_PORT} ollama list"
 OLLAMA_BASE_URL=http://127.0.0.1:${AVAILABLE_PORT}; ollama run $MODEL_NAME:$MODEL_VER
 
+=======
+sleep 5
+>>>>>>> 768bef3f2b3a61570d0a1839270e88bf35e26554
 
 echo ""
 echo "=============================================="
 echo "OLLAMA SERVER STARTED"
 echo "=============================================="
 echo "Port: $AVAILABLE_PORT"
+<<<<<<< HEAD
 echo "Model: $MODEL_NAME:$MODEL_VER"
 echo ""
 echo "SSH tunnel command (run in another terminal on your Mac):"
@@ -77,6 +86,20 @@ echo "The SSH tunnel is running in the background."
 echo "Local port ${AVAILABLE_PORT} on your Mac is forwarded to 127.0.0.1:${AVAILABLE_PORT} on login.hpcc.ttu.edu."
 echo ""
 echo "You can use Ollama through the tunnel with:"
+=======
+echo "Node: $(hostname)"
+echo "Model: $MODEL_NAME:$MODEL_VER"
+echo ""
+echo "To create a tunnel from your Mac use this format:"
+echo "  1. Login to interactive nocona on HPCC: /etc/slurm/scripts/interactive -p nocona"
+echo "  2. Note the node name and port from this session (node=$(hostname), port=$AVAILABLE_PORT)"
+echo "  3. From your Mac: ssh sweeden@login.hpcc.ttu.edu -L pppp:NODE:pppp"
+echo "     Substitute NODE and pppp with the node name and port from step 2."
+echo ""
+echo "  Example for this session: ssh sweeden@login.hpcc.ttu.edu -L ${AVAILABLE_PORT}:$(hostname):${AVAILABLE_PORT}"
+echo ""
+echo "Then use Ollama locally:"
+>>>>>>> 768bef3f2b3a61570d0a1839270e88bf35e26554
 echo "  OLLAMA_HOST=127.0.0.1:${AVAILABLE_PORT} ollama list"
 echo "  OLLAMA_BASE_URL=http://127.0.0.1:${AVAILABLE_PORT} ollama run $MODEL_NAME:$MODEL_VER"
 echo ""
