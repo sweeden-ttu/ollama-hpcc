@@ -2,6 +2,17 @@
 
 This guide covers running Ollama as a Slurm batch job on the HPCC cluster and using it from your Mac via SSH port forwarding.
 
+## Four steps (all from your Mac)
+
+1. **Submit job:** `granite` (or `deepseek`, `codellama`, `qwen`)
+2. **Wait for job and get NODE & PORT:** `hpcc-wait-for-job granite` — when the job is RUNNING, it prints NODE and PORT (or use `hpcc-wait-for-job <job-id> granite` if you already have a job id).
+3. **Create tunnel:** `hpcc-tunnel <PORT> <NODE>` — e.g. `hpcc-tunnel 40223 gpu-21-10` (use the PORT and NODE from step 2). Leave this terminal open, or run with `-f` (already in the function).
+4. **Use Ollama:** In another terminal: `OLLAMA_HOST=127.0.0.1:<PORT> ollama list` then `OLLAMA_HOST=127.0.0.1:<PORT> ollama run granite4:3b` (replace `<PORT>` with the port from step 2).
+
+**Optional:** `hpcc-tunnel-jump <PORT> <NODE>` starts the login→compute forward from the login node; then run `hpcc-tunnel <PORT> 127.0.0.1` to connect your Mac to that forward.
+
+All commands are in `scripts/hpcc-aliases.zsh` (source from your `~/.zshrc`).
+
 ---
 
 ## Where things run
@@ -85,7 +96,7 @@ So: the port forward is set up on the Mac with that `ssh -L` command; the tunnel
 ## Quick reference
 
 | Step | Where | Command / action |
-|------|--------|-------------------|
+|------|-------|------------------|
 | 1. Submit job | **Mac** | `granite` (or `deepseek`, `codellama`, `qwen`) |
 | 2. Wait for job, get NODE & PORT | **Mac** | `hpcc-wait-for-job granite` or `hpcc-wait-for-job <job-id> granite` |
 | 3. Create tunnel | **Mac** | `hpcc-tunnel <PORT> <NODE>` (e.g. `hpcc-tunnel 40223 gpu-21-10`) |

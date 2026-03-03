@@ -129,7 +129,7 @@ hpcc-tunnel() {
     fi
     echo "=== Creating tunnel (PORT NODE mode) ==="
     echo "Port: $port  Node: $node"
-    ssh -L "${port}:${node}:${port}" hpcc-login -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N -f
+    ssh -q -i /Users/owner/.ssh/id_rsa -L "${port}:${node}:${port}" -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N -f sweeden@login.hpcc.ttu.edu
     echo "Tunnel started! Test: curl http://localhost:${port}/api/tags"
     return 0
   fi
@@ -137,6 +137,7 @@ hpcc-tunnel() {
   # Check job status first
   local job_status
   job_status=$(ssh -q sweeden@login.hpcc.ttu.edu "squeue -u \$USER -o '%T' -h" 2>/dev/null | head -1)
+  job_status=$(echo "$job_status" | tr -d '\r\n' | xargs)
   
   if [[ "$job_status" != "RUNNING" ]]; then
     echo "Job status: $job_status (not RUNNING)"
@@ -169,10 +170,10 @@ hpcc-tunnel() {
   echo "Model: $model"
   echo "Node: $node"
   echo "Port: $port"
-  echo "Command: ssh -L ${port}:${node}:${port} hpcc-login -N -f"
+  echo "Command: ssh -L ${port}:${node}:${port} sweeden@login.hpcc.ttu.edu -N -f"
   echo "========================"
   
-  ssh -L "${port}:${node}:${port}" hpcc-login -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N -f
+  ssh -q -i /Users/owner/.ssh/id_rsa -L "${port}:${node}:${port}" -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -N -f sweeden@login.hpcc.ttu.edu
 
   echo "Tunnel started!"
   echo "Test: curl http://127.0.0.1:${port}/api/tags"
