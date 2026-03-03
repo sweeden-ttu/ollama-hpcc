@@ -151,5 +151,6 @@ echo "Serving ${FULL_MODEL} — job will run until walltime (${HPCC_TIME})"
 echo "To connect from your Mac:"
 echo "  ssh -L ${OLPORT}:$(hostname):${OLPORT} -i ~/.ssh/id_rsa ${USER}@login.hpcc.ttu.edu -N"
 ~/ollama-latest/bin/ollama run ${FULL_MODEL} --verbose >~/ollama-hpcc/running_${MODEL}_${OLPORT}.log 2>~/ollama-hpcc/running_${MODEL}_${OLPORT}.err &
-sleep 2h30m
+# Sleep until walltime (02:30:00 = 9000s); standard sleep only accepts seconds
+sleep 9000
 wait ${OLLAMA_PID}

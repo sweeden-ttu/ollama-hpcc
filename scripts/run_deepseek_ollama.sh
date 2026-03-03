@@ -106,5 +106,6 @@ echo "Pulling model ${FULL_MODEL} (skipped if already cached)..."
 # ---------------------------------------------------------------------------
 echo "Launching ${FULL_MODEL} in serve mode. Connect at ${OLLAMA_BASE_URL}"
 ~/ollama-latest/bin/ollama run ${FULL_MODEL} --verbose >~/ollama-hpcc/running_${MODEL}_${OLPORT}.log 2>~/ollama-hpcc/running_${MODEL}_${OLPORT}.err &
-sleep 2h30m
+# Sleep until walltime (02:30:00 = 9000s); standard sleep only accepts seconds
+sleep 9000
 wait ${OLLAMA_PID}
