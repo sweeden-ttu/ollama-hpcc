@@ -15,19 +15,19 @@ hpcc-login() {
 
 # Submit batch jobs - uses dynamic ports (sbatch on HPCC)
 granite() {
-    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit.sh granite"
+    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit_gpu.sh granite"
 }
 
 codellama() {
-    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit.sh codellama"
+    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit_gpu.sh codellama"
 }
 
 deepseek() {
-    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit.sh deepseek"
+    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit_gpu.sh deepseek"
 }
 
 qwen() {
-    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit.sh qwen"
+    ssh -q sweeden@login.hpcc.ttu.edu "sbatch ~/job/slurm_submit_gpu.sh qwen"
 }
 
 # SSH tunnel to Ollama on HPCC
@@ -227,19 +227,19 @@ hpcc-git-pull() {
 }
 
 # -----------------------------------------------------------------------------
-# Batch job submission (model-specific) — uses job/slurm_submit.sh
+# Batch job submission (model-specific) — uses job/slurm_submit_gpu.sh
 # -----------------------------------------------------------------------------
 granite() {
-  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit.sh granite'
+  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit_gpu.sh granite'
 }
 deepseek() {
-  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit.sh deepseek'
+  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit_gpu.sh deepseek'
 }
 codellama() {
-  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit.sh codellama'
+  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit_gpu.sh codellama'
 }
 qwen() {
-  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit.sh qwen'
+  ssh -q sweeden@login.hpcc.ttu.edu 'sbatch ~/job/slurm_submit_gpu.sh qwen'
 }
 
 # -----------------------------------------------------------------------------
@@ -248,19 +248,9 @@ qwen() {
 #   OR: hpcc-wait-for-job [model-name] (submits job first; use granite|deepseek|codellama|qwen)
 # -----------------------------------------------------------------------------
 hpcc-wait-for-job() {
-  local HPCC_SSH="ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu"
-  local job_id model_name
-  
   # Use array so zsh invokes ssh correctly (zsh doesn't word-split unquoted vars like bash)
   local -a HPCC_SSH=(ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu)
-  local job_id model_name script_name
-
-  # Map friendly model name to script filename (qwen -> qwen-coder)
-  case "$1" in
-    granite|deepseek|codellama) script_name="$1" ;;
-    qwen) script_name="qwen-coder" ;;
-    *) script_name="$1" ;;
-  esac
+  local job_id model_name
 
   if [[ -z "$1" ]]; then
     echo "Usage: hpcc-wait-for-job <job-id> OR <model-name>"
@@ -273,15 +263,21 @@ hpcc-wait-for-job() {
     model_name="${2:-granite}"
   else
     model_name="$1"
-    echo "Submitting $model_name job..."
-    job_id=$($HPCC_SSH "sbatch ~/job/slurm_submit.sh $model_name" | grep -oP '\d+')
-    # Portable job ID extraction (macOS grep has no -P; sbatch prints "Submitted batch job 12345")
-    job_id=$("${HPCC_SSH[@]}" "cd ~/ollama-hpcc && sbatch scripts/run_${script_name}_ollama.sh" | awk '{print $NF}')
-    if [[ -z "$job_id" || ! "$job_id" =~ ^[0-9]+$ ]]; then
-      echo "Failed to get job ID from sbatch output"
-      return 1
+    # Check if a GPU job is already running before submitting (use ~/job/slurm_submit_gpu.sh)
+    local running_job
+    running_job=$("${HPCC_SSH[@]}" "squeue -u \$USER -h -o '%i %t' 2>/dev/null | awk '\$2==\"R\" {print \$1; exit}'" | tr -d '\r')
+    if [[ -n "$running_job" && "$running_job" =~ ^[0-9]+$ ]]; then
+      echo "Job $running_job is already RUNNING; using it (no sbatch)."
+      job_id="$running_job"
+    else
+      echo "Submitting $model_name job via ~/job/slurm_submit_gpu.sh..."
+      job_id=$("${HPCC_SSH[@]}" "sbatch ~/job/slurm_submit_gpu.sh $model_name" | awk '{print $NF}')
+      if [[ -z "$job_id" || ! "$job_id" =~ ^[0-9]+$ ]]; then
+        echo "Failed to get job ID from sbatch output"
+        return 1
+      fi
+      echo "Submitted job: $job_id"
     fi
-    echo "Submitted job: $job_id"
   fi
 
   echo "Waiting for job $job_id to start..."
@@ -307,19 +303,23 @@ hpcc-wait-for-job() {
 
   echo ""
   echo "=== Connection Info ==="
-  local conn_info=$($HPCC_SSH "grep -E 'NODE=|PORT=|TUNNEL_FROM_MAC=' ~/*${job_id}*.out ~/ollama-hpcc/*${job_id}*.out 2>/dev/null" || echo "")
-  
-  # Info files live in ~/ollama-logs as MODEL_JOBID.info (e.g. granite4_12345.info)
+  # Info files: ~/ollama-logs (MODEL_JOBID.info) or ~/job for GPU jobs
   local conn_info=$("${HPCC_SSH[@]}" "grep -E '^NODE=|^PORT=' ~/ollama-logs/*${job_id}*.info 2>/dev/null" || echo "")
 
   if [[ -z "$conn_info" ]]; then
     conn_info=$("${HPCC_SSH[@]}" "grep -E '^NODE=|^PORT=' ~/ollama-logs/*_${job_id}.info 2>/dev/null" || echo "")
   fi
+  if [[ -z "$conn_info" ]]; then
+    conn_info=$("${HPCC_SSH[@]}" "for f in ~/job/*${job_id}*.info ~/job/*_${job_id}.info; do [ -f \"\$f\" ] && grep -E '^NODE=|^PORT=' \"\$f\" 2>/dev/null && break; done" || echo "")
+  fi
+  if [[ -z "$conn_info" ]]; then
+    conn_info=$("${HPCC_SSH[@]}" "for f in ~/job/*${job_id}*.out ~/job/*${job_id}*.err; do [ -f \"\$f\" ] && grep -E '^NODE=|^PORT=' \"\$f\" 2>/dev/null && break; done" || echo "")
+  fi
 
   if [[ -n "$conn_info" ]]; then
     echo "$conn_info"
   else
-    echo "(No .info file found for job $job_id in ~/ollama-logs yet; try again in a few seconds)"
+    echo "(No NODE/PORT found for job $job_id in ~/ollama-logs or ~/job; check hpcc-jobs and job output)"
   fi
 
   local node=$(echo "$conn_info" | grep '^NODE=' | cut -d= -f2)
