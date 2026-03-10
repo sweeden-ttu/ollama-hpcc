@@ -2,6 +2,17 @@
 
 This guide covers running Ollama as a Slurm batch job on the HPCC cluster and using it from your Mac via SSH port forwarding.
 
+## Four steps (all from your Mac)
+
+1. **Submit job:** `granite` (or `deepseek`, `codellama`, `qwen`)
+2. **Wait for job and get NODE & PORT:** `hpcc-wait-for-job granite` — when the job is RUNNING, it prints NODE and PORT (or use `hpcc-wait-for-job <job-id> granite` if you already have a job id).
+3. **Create tunnel:** `hpcc-tunnel <PORT> <NODE>` — e.g. `hpcc-tunnel 40223 gpu-21-10` (use the PORT and NODE from step 2). Leave this terminal open, or run with `-f` (already in the function).
+4. **Use Ollama:** In another terminal: `OLLAMA_HOST=127.0.0.1:<PORT> ollama list` then `OLLAMA_HOST=127.0.0.1:<PORT> ollama run granite4:3b` (replace `<PORT>` with the port from step 2).
+
+**Optional:** `hpcc-tunnel-jump <PORT> <NODE>` starts the login→compute forward from the login node; then run `hpcc-tunnel <PORT> 127.0.0.1` to connect your Mac to that forward.
+
+All commands are in `scripts/hpcc-aliases.zsh` (source from your `~/.zshrc`).
+
 ---
 
 ## Where things run
@@ -85,20 +96,19 @@ So: the port forward is set up on the Mac with that `ssh -L` command; the tunnel
 ## Quick reference
 
 | Step | Where | Command / action |
-|------|--------|-------------------|
-| 1. Start server | HPCC | `granite` or `deepseek` or `codellama` or `qwen` |
-| 2. Get node & port | **Mac** | `hpcc-env` (reads ~/ollama-logs/*.info, prints NODE/PORT/MODEL) |
-| 3. Create tunnel | **Mac** | `hpcc-tunnel [MODEL]` e.g. `hpcc-tunnel granite4` |
-| 4. Use Ollama | **Mac** | `hpcc-update-env` (sets .env and runs `ollama run <model>`) |
+|------|-------|------------------|
+| 1. Submit job | **Mac** | `granite` (or `deepseek`, `codellama`, `qwen`) |
+| 2. Wait for job, get NODE & PORT | **Mac** | `hpcc-wait-for-job granite` or `hpcc-wait-for-job <job-id> granite` |
+| 3. Create tunnel | **Mac** | `hpcc-tunnel <PORT> <NODE>` (e.g. `hpcc-tunnel 40223 gpu-21-10`) |
+| 4. Use Ollama | **Mac** | `OLLAMA_HOST=127.0.0.1:<PORT> ollama list` then `ollama run <model>` |
+
+Optional: `hpcc-tunnel-jump PORT NODE` establishes the login→compute forward; then run `hpcc-tunnel PORT 127.0.0.1` to reach it from the Mac.
 
 All aliases are defined in `scripts/hpcc-aliases.zsh`.
 
-### Test plan (job already running, start at step 2)
----
-
 ## Batch job vs interactive tunnel script
 
-- **`slurm_submit.sh`** — Batch job: starts `ollama serve` on the allocated node and keeps the job alive. Get NODE and PORT from the job’s `.out` file, then run the `ssh -L` and `OLLAMA_HOST=... ollama` commands on your Mac.
-- **`slurm_tunnel.sh`** — Interactive Slurm allocation (e.g. `salloc`). Use it when you want a shell on a node and will start Ollama yourself in that session. After you get the shell, the script prints generic tunnel instructions; substitute the node you’re on and the port Ollama reports.
+- **`slurm_submit_gpu.sh`** — Batch job: starts `ollama serve` on the allocated node and keeps the job alive. Get NODE and PORT from the job’s `.out` file, then run the `ssh -L` and `OLLAMA_HOST=... ollama` commands on your Mac.
+- **`slurm_submit_gpu.sh`** — Interactive Slurm allocation (e.g. `salloc`). Use it when you want a shell on a node and will start Ollama yourself in that session. After you get the shell, the script prints generic tunnel instructions; substitute the node you’re on and the port Ollama reports.
 
 For the typical “run Ollama in the background on a GPU node and use it from my Mac” workflow, use the batch job and the Mac steps above.

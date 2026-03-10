@@ -12,6 +12,10 @@ case $MODEL in
         MODEL_NAME="granite4"
         MODEL_VER="3b"
         ;;
+    granite-vision|vision)
+        MODEL_NAME="granite3-vision"
+        MODEL_VER="8b"
+        ;;
     deepseek)
         MODEL_NAME="deepseek-r1"
         MODEL_VER="8b"

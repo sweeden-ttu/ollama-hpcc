@@ -12,6 +12,10 @@ case $MODEL in
         MODEL_NAME="granite4"
         MODEL_VER="3b"
         ;;
+    granite-vision|vision)
+        MODEL_NAME="granite3-vision"
+        MODEL_VER="8b"
+        ;;
     deepseek)
         MODEL_NAME="deepseek-r1"
         MODEL_VER="8b"
@@ -58,11 +62,20 @@ module load cuda/12.9.0
 echo "Starting Ollama server..."
 /home/sweeden/ollama-latest/bin/ollama serve > /home/sweeden/ollama-hpcc/running_${MODEL}_${AVAILABLE_PORT}.log 2> /home/sweeden/ollama-hpcc/running_${MODEL}_${AVAILABLE_PORT}.err &
 
+<<<<<<< HEAD:scripts/interactive_ollama_gpu.sh
+=======
+sleep 5
+
+>>>>>>> 9be7103dba475694d98e4fe74b19dee796a2a0c8:scripts/interactive_ollama.sh
 echo ""
 echo "=============================================="
 echo "OLLAMA SERVER STARTED"
 echo "=============================================="
 echo "Port: $AVAILABLE_PORT"
+<<<<<<< HEAD:scripts/interactive_ollama_gpu.sh
+=======
+
+>>>>>>> 9be7103dba475694d98e4fe74b19dee796a2a0c8:scripts/interactive_ollama.sh
 echo "Node: $(hostname)"
 echo "Model: $MODEL_NAME:$MODEL_VER"
 echo ""
