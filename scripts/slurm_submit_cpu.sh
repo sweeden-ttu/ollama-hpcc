@@ -22,6 +22,10 @@ case $MODEL in
         MODEL_NAME="granite4"
         MODEL_VER="3b"
         ;;
+    granite-vision|vision)
+        MODEL_NAME="granite3-vision"
+        MODEL_VER="8b"
+        ;;
     deepseek)
         MODEL_NAME="deepseek-r1"
         MODEL_VER="8b"
@@ -36,7 +40,7 @@ case $MODEL in
         ;;
     *)
         echo "Unknown model: $MODEL"
-        echo "Usage: $0 [granite|deepseek|codellama|qwen]"
+        echo "Usage: $0 [granite|granite-vision|deepseek|codellama|qwen]"
         exit 1
         ;;
 esac
@@ -62,7 +66,7 @@ echo "PORT=$OLLAMA_AVAILABLE_PORT"
 echo ""
 
 cd /home/sweeden/ollama-hpcc
-source /home/sweeden/ollama-hpcc/scripts/model_versions.env
+source /home/sweeden/ollama-hpcc/scripts/model_versions_cpu.env
 
 module purge
 module load gcc

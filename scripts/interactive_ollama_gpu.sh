@@ -30,7 +30,7 @@ case $MODEL in
         ;;
     *)
         echo "Unknown model: $MODEL"
-        echo "Usage: $0 [granite|deepseek|codellama|qwen]"
+        echo "Usage: $0 [granite|granite-vision|deepseek|codellama|qwen]"
         exit 1
         ;;
 esac
@@ -51,7 +51,7 @@ echo "Port $AVAILABLE_PORT selected"
 echo "=============================================="
 
 cd /home/sweeden/ollama-hpcc
-source /home/sweeden/ollama-hpcc/scripts/model_versions.env
+source /home/sweeden/ollama-hpcc/scripts/model_versions_gpu.env
 
 export OLLAMA_HOST=127.0.0.1:$AVAILABLE_PORT
 export OLLAMA_BASE_URL="http://localhost:$AVAILABLE_PORT"
@@ -62,20 +62,13 @@ module load cuda/12.9.0
 echo "Starting Ollama server..."
 /home/sweeden/ollama-latest/bin/ollama serve > /home/sweeden/ollama-hpcc/running_${MODEL}_${AVAILABLE_PORT}.log 2> /home/sweeden/ollama-hpcc/running_${MODEL}_${AVAILABLE_PORT}.err &
 
-<<<<<<< HEAD:scripts/interactive_ollama_gpu.sh
-=======
 sleep 5
 
->>>>>>> 9be7103dba475694d98e4fe74b19dee796a2a0c8:scripts/interactive_ollama.sh
 echo ""
-echo "=============================================="
 echo "OLLAMA SERVER STARTED"
 echo "=============================================="
 echo "Port: $AVAILABLE_PORT"
-<<<<<<< HEAD:scripts/interactive_ollama_gpu.sh
-=======
 
->>>>>>> 9be7103dba475694d98e4fe74b19dee796a2a0c8:scripts/interactive_ollama.sh
 echo "Node: $(hostname)"
 echo "Model: $MODEL_NAME:$MODEL_VER"
 echo ""

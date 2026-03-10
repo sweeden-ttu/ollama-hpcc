@@ -9,7 +9,7 @@
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/model_versions.env"
+source "${SCRIPT_DIR}/model_versions_cpu.env"
 
 JSON_MODE=0
 [[ "${1}" == "--json" ]] && JSON_MODE=1

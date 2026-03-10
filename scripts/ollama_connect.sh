@@ -25,7 +25,7 @@
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/model_versions.env"
+source "${SCRIPT_DIR}/model_versions_cpu.env"
 
 FILTER="${1:-}"          # Optional model name filter
 LOCAL_PORT="${2:-11434}" # Default local port to bind

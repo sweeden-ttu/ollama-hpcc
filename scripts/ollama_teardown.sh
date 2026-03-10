@@ -15,7 +15,7 @@
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/model_versions.env"
+source "${SCRIPT_DIR}/model_versions_cpu.env"
 
 MODE="all"
 FILTER=""

@@ -14,7 +14,7 @@ echo ""
 echo "=== Discovered OLLAMA Server Info Files ==="
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/model_versions.env"
+source "${SCRIPT_DIR}/model_versions_cpu.env"
 
 info_files=("${OLLAMA_LOG_DIR}"/*.info)
 if [[ ! -e "${info_files[0]}" ]]; then

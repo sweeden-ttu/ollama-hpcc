@@ -21,7 +21,7 @@
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/model_versions.env"
+source "${SCRIPT_DIR}/model_versions_cpu.env"
 
 RUN_SCRIPT="${1}"
 NUM_NODES="${2:-1}"
