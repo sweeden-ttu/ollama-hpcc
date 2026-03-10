@@ -145,6 +145,17 @@ hpcc-status() {
 }
 alias hpcc-jobs='hpcc-status'
 
+# scontrol on login node — use for queued/running job details
+# "show jobs" is limited to user sweeden. Examples: hpcc-scontrol show job 40249   hpcc-scontrol show jobs
+hpcc-scontrol() {
+  if [[ "$1" == "show" && "$2" == "jobs" ]]; then
+    ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu "scontrol show jobs -u sweeden"
+  else
+    ssh -q -i /Users/owner/.ssh/id_rsa sweeden@login.hpcc.ttu.edu "scontrol $@"
+  fi
+}
+alias hpcc-queue='hpcc-scontrol show jobs'
+
 hpcc-kill() {
   if [[ -z "$1" ]]; then
     echo "Usage: hpcc-kill JOBID"

@@ -92,6 +92,7 @@ Example `my_gpu_script.sh` template:
 #SBATCH --partition=matador
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
+#SBATCH --test-only
 #SBATCH --mem=16G
 
 module load cuda/12.9
