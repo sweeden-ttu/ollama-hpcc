@@ -12,7 +12,7 @@ case $MODEL in
         MODEL_NAME="granite4"
         MODEL_VER="3b"
         ;;
-    granite-vision|vision)
+    granite3.2-vision|vision)
         MODEL_NAME="granite3-vision"
         MODEL_VER="8b"
         ;;
@@ -30,7 +30,7 @@ case $MODEL in
         ;;
     *)
         echo "Unknown model: $MODEL"
-        echo "Usage: $0 [granite|granite-vision|deepseek|codellama|qwen]"
+        echo "Usage: $0 [granite|granite3.2-vision|deepseek|codellama|qwen]"
         exit 1
         ;;
 esac
